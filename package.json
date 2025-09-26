@@ -10,6 +10,7 @@
     "server": "tsx watch --tsconfig tsconfig.server.json server/index.ts",
     "dev:full": "concurrently \"npm:dev\" \"npm:server\"",
     "build:server": "tsc -p tsconfig.server.json",
+    "start": "node dist/server/index.js",
     "start:server": "node dist/server/index.js",
     "check:builds": "npm run build:server && npm run build"
   },

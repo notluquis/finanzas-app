@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import { ensureSchema } from "./db.js";
 import { PORT } from "./config.js";
@@ -28,6 +30,7 @@ app.use((req, _res, next) => {
   next();
 });
 
+// API Routes
 registerAuthRoutes(app);
 registerSettingsRoutes(app);
 registerTransactionRoutes(app);
@@ -40,6 +43,23 @@ app.use("/api/supplies", suppliesRouter);
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
 });
+
+// --- Production Frontend Serving ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const base = "/intranet";
+
+// Carpeta con el build del cliente (Vite)
+const clientDir = path.resolve(__dirname, "../client");
+
+// Archivos estáticos de la SPA bajo /intranet
+app.use(base, express.static(clientDir, { index: false }));
+
+// Cualquier ruta de la SPA responde index.html para que React Router se encargue
+app.get(`${base}/*`, (_req, res) => {
+  res.sendFile(path.join(clientDir, "index.html"));
+});
+// --- End Production Frontend Serving ---
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
