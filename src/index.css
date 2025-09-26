@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* Tema opcional */
+@theme {
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+}
+
+:root {
+  --brand-primary: #0e64b7;
+  --brand-secondary: #f1a722;
+  --brand-primary-rgb: 14 100 183;
+  --brand-secondary-rgb: 241 167 34;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background-color: #f6fbff;
+  color: #102542;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+::selection {
+  background-color: var(--brand-primary);
+  color: white;
+}
+
+/* Plugins v4 opcionales */
+/* @plugin "@tailwindcss/forms"; */

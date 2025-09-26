@@ -1,0 +1,148 @@
+import { z } from "zod";
+
+const colorRegex = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const httpsUrlSchema = z
+  .string()
+  .trim()
+  .url({ message: "Debe ser una URL válida" })
+  .refine((value) => value.startsWith("https://"), {
+    message: "Debe comenzar con https://",
+  });
+
+const optionalHttpsUrl = z.union([z.literal(""), httpsUrlSchema]);
+
+export const settingsSchema = z.object({
+  orgName: z.string().min(1).max(120),
+  tagline: z.string().max(200).optional().default(""),
+  primaryColor: z.string().regex(colorRegex, "Debe ser un color HEX"),
+  secondaryColor: z.string().regex(colorRegex, "Debe ser un color HEX"),
+  logoUrl: z.string().url(),
+  dbDisplayHost: z.string().min(1).max(191),
+  dbDisplayName: z.string().min(1).max(191),
+  dbConsoleUrl: optionalHttpsUrl.default(""),
+  cpanelUrl: optionalHttpsUrl.default(""),
+  orgAddress: z.string().max(255).optional().default(""),
+  orgPhone: z.string().max(60).optional().default(""),
+  primaryCurrency: z.string().trim().min(2).max(8).optional().default("CLP"),
+  supportEmail: z.string().email(),
+});
+
+export const transactionsQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(2000).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  description: z.string().optional(),
+  origin: z.string().optional(),
+  destination: z.string().optional(),
+  sourceId: z.string().optional(),
+  direction: z.enum(["IN", "OUT", "NEUTRO"]).optional(),
+  file: z.string().optional(),
+  includeAmounts: z.enum(["true", "false"]).optional(),
+  page: z.coerce.number().int().positive().optional(),
+  pageSize: z.coerce.number().int().positive().max(500).optional(),
+});
+
+export const statsQuerySchema = z.object({
+  from: z.string().optional(),
+  to: z.string().optional(),
+});
+
+export const participantLeaderboardQuerySchema = z.object({
+  from: z.string().optional(),
+  to: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(200).optional(),
+  mode: z.enum(["combined", "incoming", "outgoing"]).optional(),
+});
+
+export const counterpartPayloadSchema = z.object({
+  rut: z.string().trim().max(64).optional().nullable(),
+  name: z.string().min(1).max(191),
+  personType: z.enum(["PERSON", "COMPANY", "OTHER"]).default("OTHER"),
+  category: z.enum(["SUPPLIER", "PATIENT", "EMPLOYEE", "PARTNER", "RELATED", "OTHER"]).optional().default("SUPPLIER"),
+  email: z.string().email().optional().nullable(),
+  employeeEmail: z.string().email().optional().nullable(),
+  employeeId: z.coerce.number().int().positive().optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+});
+
+export const counterpartAccountPayloadSchema = z.object({
+  accountIdentifier: z.string().trim().min(1).max(191),
+  bankName: z.string().max(191).optional().nullable(),
+  accountType: z.string().max(64).optional().nullable(),
+  holder: z.string().max(191).optional().nullable(),
+  concept: z.string().max(191).optional().nullable(),
+  metadata: z
+    .object({
+      bankAccountNumber: z.string().max(191).optional().nullable(),
+      withdrawId: z.string().max(191).optional().nullable(),
+    })
+    .optional()
+    .nullable(),
+});
+
+export const counterpartAccountUpdateSchema = counterpartAccountPayloadSchema.partial().extend({
+  concept: z.string().max(191).optional().nullable(),
+  metadata: counterpartAccountPayloadSchema.shape.metadata.optional(),
+});
+
+export const balancesQuerySchema = z.object({
+  from: z.string().regex(dateRegex).optional(),
+  to: z.string().regex(dateRegex).optional(),
+});
+
+export const balanceUpsertSchema = z.object({
+  date: z.string().regex(dateRegex, "Fecha inválida"),
+  balance: z.coerce.number(),
+  note: z.string().max(255).optional(),
+});
+
+export const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+export const employeeSchema = z.object({
+  full_name: z.string().min(1).max(191),
+  role: z.string().min(1).max(120),
+  email: z.string().email().nullable().optional(),
+  hourly_rate: z.coerce.number().min(0),
+  overtime_rate: z.coerce.number().min(0).nullable().optional(),
+  retention_rate: z.coerce.number().min(0).max(1),
+  metadata: z.record(z.string(), z.any()).nullable().optional(),
+});
+
+export const employeeUpdateSchema = employeeSchema.partial().extend({
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+});
+
+export const timesheetPayloadSchema = z.object({
+  employee_id: z.coerce.number().int().positive(),
+  work_date: z.string().regex(dateRegex),
+  start_time: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  end_time: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  worked_minutes: z.coerce.number().int().min(0),
+  overtime_minutes: z.coerce.number().int().min(0).default(0),
+  extra_amount: z.coerce.number().min(0).default(0),
+  comment: z.string().max(255).nullable().optional(),
+});
+
+export const timesheetUpdateSchema = timesheetPayloadSchema
+  .omit({ employee_id: true, work_date: true })
+  .partial();
+
+export const timesheetBulkSchema = z.object({
+  employee_id: z.coerce.number().int().positive(),
+  entries: z
+    .array(
+      z.object({
+        work_date: z.string().regex(dateRegex),
+        worked_minutes: z.coerce.number().int().min(0),
+        overtime_minutes: z.coerce.number().int().min(0).default(0),
+        extra_amount: z.coerce.number().min(0).default(0),
+        comment: z.string().max(255).nullable().optional(),
+      })
+    )
+    .max(200),
+  remove_ids: z.array(z.coerce.number().int().positive()).optional(),
+});
