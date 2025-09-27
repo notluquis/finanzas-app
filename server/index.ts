@@ -56,7 +56,7 @@ const clientDir = path.resolve(__dirname, "../client");
 app.use(base, express.static(clientDir, { index: false }));
 
 // Cualquier ruta de la SPA responde index.html para que React Router se encargue
-app.get(`${base}/*`, (_req, res) => {
+app.get(/^\/intranet\/?.*$/, (_req, res) => {
   res.sendFile(path.join(clientDir, "index.html"));
 });
 // --- End Production Frontend Serving ---
