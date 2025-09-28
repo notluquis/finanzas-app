@@ -1,4 +1,6 @@
 import dayjs from "dayjs";
+import Alert from "../../../components/Alert";
+import Button from "../../../components/Button";
 import { fmtCLP } from "../../../lib/format";
 import type { BalanceDraft, BalancesApiResponse } from "../types";
 import { formatBalanceInput } from "../utils";
@@ -23,16 +25,16 @@ export function DailyBalancesPanel({
   error,
 }: Props) {
   return (
-    <section className="space-y-3 rounded-2xl border border-[var(--brand-primary)]/10 bg-white p-6 shadow-sm">
+    <section className="glass-card glass-underlay-gradient space-y-4 p-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-[var(--brand-primary)]">Saldos diarios</h2>
-          <p className="text-xs text-slate-500">
+          <h2 className="text-lg font-semibold text-[var(--brand-primary)] drop-shadow-sm">Saldos diarios</h2>
+          <p className="text-xs text-slate-600/90">
             Registra el saldo de la cuenta a las 23:59 de cada día para conciliar los movimientos.
           </p>
         </div>
         {report?.previous && (
-          <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          <div className="rounded-xl border border-white/55 bg-white/60 px-4 py-2 text-xs font-medium text-slate-600 shadow-inner">
             Saldo cierre previo ({dayjs(report.previous.date).format("DD-MM-YYYY")})
             <span className="ml-2 font-semibold text-slate-800">{fmtCLP(report.previous.balance)}</span>
           </div>
@@ -40,33 +42,35 @@ export function DailyBalancesPanel({
       </div>
 
       {error && (
-        <p className="rounded-lg bg-rose-100 px-4 py-2 text-xs text-rose-700">{error}</p>
+        <Alert variant="error" className="text-xs">
+          {error}
+        </Alert>
       )}
 
       {loading ? (
         <p className="px-4 py-3 text-sm text-[var(--brand-primary)]">Cargando saldos diarios...</p>
       ) : !report ? (
-        <p className="px-4 py-3 text-sm text-slate-500">
+        <p className="px-4 py-3 text-sm text-slate-600">
           Selecciona un rango con movimientos para conciliar los saldos diarios.
         </p>
       ) : report.days.length === 0 ? (
-        <p className="px-4 py-3 text-sm text-slate-500">
+        <p className="px-4 py-3 text-sm text-slate-600">
           No hay días registrados en el rango actual.
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+          <table className="min-w-full text-sm text-slate-700">
+            <thead className="bg-white/60 text-[var(--brand-primary)]">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold">Fecha</th>
-                <th className="px-4 py-3 text-left font-semibold">Ingresos</th>
-                <th className="px-4 py-3 text-left font-semibold">Egresos</th>
-                <th className="px-4 py-3 text-left font-semibold">Variación neta</th>
-                <th className="px-4 py-3 text-left font-semibold">Saldo esperado</th>
-                <th className="px-4 py-3 text-left font-semibold">Saldo registrado</th>
-                <th className="px-4 py-3 text-left font-semibold">Diferencia</th>
-                <th className="px-4 py-3 text-left font-semibold">Nota</th>
-                <th className="px-4 py-3 text-left font-semibold">Acciones</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Fecha</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Ingresos</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Egresos</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Variación neta</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Saldo esperado</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Saldo registrado</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Diferencia</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Nota</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -81,12 +85,15 @@ export function DailyBalancesPanel({
                 const mismatch = day.difference != null && Math.abs(day.difference) > 1;
 
                 return (
-                  <tr key={day.date} className="align-top odd:bg-slate-50/60">
+                  <tr
+                    key={day.date}
+                    className="align-top border-b border-white/40 bg-white/45 last:border-none even:bg-white/35"
+                  >
                     <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-700">
                       <div className="flex flex-col gap-1">
                         <span>{dayjs(day.date).format("DD-MM-YYYY")}</span>
                         {day.hasCashback && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50/70 px-2 py-0.5 text-[11px] font-medium text-amber-700 shadow-sm">
                             Cashback excluido
                           </span>
                         )}
@@ -105,7 +112,7 @@ export function DailyBalancesPanel({
                         type="text"
                         value={draft.value}
                         onChange={(event) => onDraftChange(day.date, { value: event.target.value })}
-                        className="w-full rounded border px-2 py-1 text-sm"
+                        className="glass-input w-full text-sm"
                         placeholder="0"
                       />
                     </td>
@@ -125,19 +132,19 @@ export function DailyBalancesPanel({
                         rows={2}
                         value={draft.note}
                         onChange={(event) => onDraftChange(day.date, { note: event.target.value })}
-                        className="w-full rounded border px-2 py-1 text-xs"
+                        className="glass-input w-full text-xs"
                         placeholder="Comentario opcional"
                       />
                     </td>
                     <td className="px-4 py-3">
-                      <button
+                      <Button
                         type="button"
+                        size="xs"
                         onClick={() => onSave(day.date)}
                         disabled={!canSave}
-                        className="rounded-full bg-[var(--brand-primary)] px-3 py-1 text-xs font-semibold text-white shadow disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {isSaving ? "Guardando..." : "Guardar"}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 );

@@ -1,47 +1,27 @@
+import { apiClient } from "../../lib/apiClient";
 import type { Employee, EmployeePayload, EmployeeUpdatePayload } from "./types";
 
-async function handleResponse<T>(res: Response) {
-  const data = await res.json();
-  if (!res.ok || data.status !== "ok") {
-    throw new Error(data.message || "Error inesperado en la solicitud");
+export type { Employee, EmployeePayload, EmployeeUpdatePayload };
+
+export async function fetchEmployees(includeInactive = false): Promise<Employee[]> {
+  const url = new URL("/api/employees", window.location.origin);
+  if (includeInactive) {
+    url.searchParams.set("includeInactive", "true");
   }
-  return data as { status: "ok" } & T;
+  const res = await apiClient.get<{ employees: Employee[] }>(url.pathname + url.search);
+  return res.employees;
 }
 
-export async function fetchEmployees(includeInactive = false) {
-  const params = new URLSearchParams();
-  if (includeInactive) params.set("includeInactive", "true");
-  const res = await fetch(`/api/employees?${params.toString()}`, { credentials: "include" });
-  const data = await handleResponse<{ employees: Employee[] }>(res);
-  return data.employees;
+export async function createEmployee(data: EmployeePayload): Promise<Employee> {
+  const res = await apiClient.post<{ employee: Employee }>("/api/employees", data);
+  return res.employee;
 }
 
-export async function createEmployee(payload: EmployeePayload) {
-  const res = await fetch("/api/employees", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleResponse<{ employee: Employee }>(res);
-  return data.employee;
+export async function updateEmployee(id: number, data: EmployeeUpdatePayload): Promise<Employee> {
+  const res = await apiClient.put<{ employee: Employee }>(`/api/employees/${id}`, data);
+  return res.employee;
 }
 
-export async function updateEmployee(id: number, payload: EmployeeUpdatePayload) {
-  const res = await fetch(`/api/employees/${id}`, {
-    method: "PUT",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await handleResponse<{ employee: Employee }>(res);
-  return data.employee;
-}
-
-export async function deactivateEmployee(id: number) {
-  const res = await fetch(`/api/employees/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
-  await handleResponse<{}>(res);
+export async function deactivateEmployee(id: number): Promise<void> {
+  await apiClient.delete(`/api/employees/${id}`);
 }

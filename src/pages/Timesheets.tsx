@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
-import { fmtCLP } from "../lib/format";
 import { useAuth } from "../context/AuthContext";
-import { durationToMinutes, minutesToDuration } from "../../shared/time";
 import { fetchEmployees } from "../features/employees/api";
 import type { Employee } from "../features/employees/types";
 import {
@@ -11,7 +9,12 @@ import {
   bulkUpsertTimesheets,
   deleteTimesheet,
 } from "../features/timesheets/api";
-import type { TimesheetSummaryRow, TimesheetEntry } from "../features/timesheets/types";
+import type { TimesheetEntry, BulkRow, TimesheetSummaryRow } from "../features/timesheets/types";
+import { buildBulkRows, hasRowData, isRowDirty, parseDuration, formatDateLabel, computeExtraAmount } from "../features/timesheets/utils";
+import TimesheetSummaryTable from "../features/timesheets/components/TimesheetSummaryTable";
+import TimesheetDetailTable from "../features/timesheets/components/TimesheetDetailTable";
+import Alert from "../components/Alert";
+import Input from "../components/Input";
 
 const EMPTY_BULK_ROW = {
   date: "",
@@ -22,14 +25,12 @@ const EMPTY_BULK_ROW = {
   entryId: null as number | null,
 };
 
-type BulkRow = typeof EMPTY_BULK_ROW;
-
 export default function TimesheetsPage() {
   const { hasRole } = useAuth();
   const canEdit = hasRole("GOD", "ADMIN", "ANALYST");
 
   const [month, setMonth] = useState(dayjs().subtract(1, "month").format("YYYY-MM"));
-  const [summary, setSummary] = useState<{ employees: TimesheetSummaryRow[]; totals: SummaryTotals } | null>(null);
+  const [summary, setSummary] = useState<{ employees: TimesheetSummaryRow[]; totals: any } | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
   const [bulkRows, setBulkRows] = useState<BulkRow[]>([]);
@@ -46,13 +47,12 @@ export default function TimesheetsPage() {
 
   useEffect(() => {
     loadSummary();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month]);
 
-const monthLabel = useMemo(() => {
-  const [year, monthStr] = month.split("-");
-  return dayjs(`${year}-${monthStr}-01`).format("MMMM YYYY");
-}, [month]);
+  const monthLabel = useMemo(() => {
+    const [year, monthStr] = month.split("-");
+    return dayjs(`${year}-${monthStr}-01`).format("MMMM YYYY");
+  }, [month]);
 
   const employeeOptions = useMemo(
     () => employees.filter((employee) => employee.status === "ACTIVE"),
@@ -74,11 +74,10 @@ const monthLabel = useMemo(() => {
       setBulkRows([]);
       setInitialRows([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEmployeeId, month, selectedEmployee?.hourly_rate]);
 
   const pendingCount = useMemo(
-    () => bulkRows.filter((row) => !row.entryId && !hasRowData(row)).length,
+    () => bulkRows.filter((row) => !row.entryId && hasRowData(row)).length,
     [bulkRows]
   );
 
@@ -271,339 +270,44 @@ const monthLabel = useMemo(() => {
             resumen y completa la tabla diaria sin volver a guardar cada fila.
           </p>
         </div>
-        <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-          Periodo
-          <input
-            type="month"
-            value={month}
-            onChange={(event) => {
-              setMonth(event.target.value);
-              setInfo(null);
-            }}
-            className="rounded border px-3 py-2 text-sm"
-          />
-        </label>
+        <Input
+          label="Periodo"
+          type="month"
+          value={month}
+          onChange={(event) => {
+            setMonth(event.target.value);
+            setInfo(null);
+          }}
+          className="w-fit"
+        />
       </div>
 
-      {error && <p className="rounded-lg bg-rose-100 px-4 py-3 text-sm text-rose-700">{error}</p>}
-      {info && <p className="rounded-lg bg-emerald-100 px-4 py-3 text-sm text-emerald-700">{info}</p>}
+      {error && <Alert variant="error">{error}</Alert>}
+      {info && <Alert variant="success">{info}</Alert>}
 
-      <div className="overflow-hidden rounded-2xl border border-[var(--brand-primary)]/15 bg-white shadow-sm">
-        <table className="min-w-full text-sm">
-          <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold">Trabajador</th>
-              <th className="px-4 py-3 text-left font-semibold">Cargo</th>
-              <th className="px-4 py-3 text-left font-semibold">Horas</th>
-              <th className="px-4 py-3 text-left font-semibold">Horas extra</th>
-              <th className="px-4 py-3 text-left font-semibold">Tarifa</th>
-              <th className="px-4 py-3 text-left font-semibold">Extras (HH:MM)</th>
-              <th className="px-4 py-3 text-left font-semibold">Subtotal</th>
-              <th className="px-4 py-3 text-left font-semibold">Retención</th>
-              <th className="px-4 py-3 text-left font-semibold">Líquido</th>
-              <th className="px-4 py-3 text-left font-semibold">Fecha pago</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loadingSummary && (
-              <tr>
-                <td colSpan={10} className="px-4 py-6 text-center text-[var(--brand-primary)]">
-                  Cargando resumen...
-                </td>
-              </tr>
-            )}
-            {!loadingSummary &&
-              summary?.employees.map((row) => (
-                <tr
-                  key={row.employeeId}
-                  className={`cursor-pointer odd:bg-slate-50/60 ${
-                    row.employeeId === selectedEmployeeId ? "bg-[var(--brand-primary)]/10" : ""
-                  }`}
-                  onClick={() => setSelectedEmployeeId(row.employeeId)}
-                >
-                  <td className="px-4 py-3 font-medium text-slate-700">{row.fullName}</td>
-                  <td className="px-4 py-3 text-slate-500">{row.role}</td>
-                  <td className="px-4 py-3 text-slate-600">{row.hoursFormatted}</td>
-                  <td className="px-4 py-3 text-slate-600">{row.overtimeFormatted}</td>
-                  <td className="px-4 py-3 text-slate-600">{fmtCLP(row.hourlyRate)}</td>
-                <td className="px-4 py-3 text-slate-600">{formatExtraHours(row)}</td>
-                  <td className="px-4 py-3 text-slate-600">{fmtCLP(row.subtotal)}</td>
-                  <td className="px-4 py-3 text-slate-600">{fmtCLP(row.retention)}</td>
-                  <td className="px-4 py-3 text-slate-600">{fmtCLP(row.net)}</td>
-                  <td className="px-4 py-3 text-slate-600">{dayjs(row.payDate).format("DD-MM-YYYY")}</td>
-                </tr>
-              ))}
-            {!loadingSummary && summary?.employees.length === 0 && (
-              <tr>
-                <td colSpan={10} className="px-4 py-6 text-center text-slate-500">
-                  Aún no registras horas en este periodo.
-                </td>
-              </tr>
-            )}
-          </tbody>
-          {summary && (
-            <tfoot className="bg-slate-100 text-slate-700">
-              <tr>
-                <td className="px-4 py-3 font-semibold" colSpan={2}>
-                  TOTAL
-                </td>
-                <td className="px-4 py-3 font-semibold">{summary.totals.hours}</td>
-                <td className="px-4 py-3 font-semibold">{summary.totals.overtime}</td>
-                <td className="px-4 py-3"></td>
-                <td className="px-4 py-3 font-semibold">{formatTotalExtraHours(summary.employees)}</td>
-                <td className="px-4 py-3 font-semibold">{fmtCLP(summary.totals.subtotal)}</td>
-                <td className="px-4 py-3 font-semibold">{fmtCLP(summary.totals.retention)}</td>
-                <td className="px-4 py-3 font-semibold">{fmtCLP(summary.totals.net)}</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
+      <TimesheetSummaryTable
+        summary={summary}
+        loading={loadingSummary}
+        selectedEmployeeId={selectedEmployeeId}
+        onSelectEmployee={setSelectedEmployeeId}
+      />
 
-      <div className="space-y-4 rounded-2xl border border-[var(--brand-primary)]/15 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--brand-primary)]">Detalle diario</h2>
-            <p className="text-xs text-slate-500">
-              {selectedEmployeeId
-                ? `Registros de ${monthLabel}`
-                : "Selecciona un trabajador en el resumen"}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-            <span>Pendientes: {pendingCount}</span>
-            <span>Cambios sin guardar: {modifiedCount}</span>
-            {employeeOptions.length > 0 && (
-              <select
-                value={selectedEmployeeId ?? ""}
-                onChange={(event) => setSelectedEmployeeId(Number(event.target.value))}
-                className="rounded border px-3 py-2 text-sm"
-              >
-                {employeeOptions.map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.full_name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        </div>
-
-        {canEdit && selectedEmployeeId && (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-slate-500">
-              Ingresa las horas en formato <strong>HH:MM</strong> (24 horas). Déjalo en blanco para marcarlo como pendiente. Si limpias un registro existente, se eliminará al guardar.
-            </p>
-            <button
-              type="button"
-              disabled={saving || (!modifiedCount && pendingCount === 0)}
-              onClick={handleBulkSave}
-              className="inline-flex items-center rounded-full bg-[var(--brand-primary)] px-4 py-2 text-sm font-semibold text-white shadow disabled:opacity-60"
-            >
-              {saving ? "Guardando..." : "Guardar cambios"}
-            </button>
-          </div>
-        )}
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
-              <tr>
-                <th className="px-3 py-2 text-left font-semibold">Fecha</th>
-                <th className="px-3 py-2 text-left font-semibold">Horas (HH:MM)</th>
-                <th className="px-3 py-2 text-left font-semibold">Horas extra (HH:MM)</th>
-                <th className="px-3 py-2 text-left font-semibold">Horas pagadas adicional (HH:MM)</th>
-                <th className="px-3 py-2 text-left font-semibold">Comentario</th>
-                <th className="px-3 py-2 text-left font-semibold">Estado</th>
-                {canEdit && <th className="px-3 py-2 text-right font-semibold">Acciones</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {loadingDetail && (
-                <tr>
-                  <td colSpan={canEdit ? 7 : 6} className="px-4 py-6 text-center text-[var(--brand-primary)]">
-                    Cargando detalle...
-                  </td>
-                </tr>
-              )}
-              {!loadingDetail &&
-                bulkRows.map((row, index) => {
-                  const initial = initialRows[index];
-                  const dirty = isRowDirty(row, initial);
-                  const status = computeStatus(row, dirty);
-                  const statusColor =
-                    status === "Registrado"
-                      ? "text-emerald-600"
-                      : status === "Pendiente"
-                        ? "text-slate-400"
-                        : status === "Sin guardar"
-                          ? "text-amber-600"
-                          : "text-slate-600";
-
-                  return (
-                    <tr key={row.date} className="odd:bg-slate-50/60">
-                      <td className="px-3 py-2 text-slate-600">{dayjs(row.date).format("DD-MM-YYYY")}</td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          placeholder="00:00"
-                          value={row.worked}
-                          onChange={(event) => handleRowChange(index, "worked", event.target.value)}
-                          className="w-full rounded border px-2 py-1 text-sm"
-                          disabled={!canEdit}
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          placeholder="00:00"
-                          value={row.overtime}
-                          onChange={(event) => handleRowChange(index, "overtime", event.target.value)}
-                          className="w-full rounded border px-2 py-1 text-sm"
-                          disabled={!canEdit}
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          min="0"
-                          value={row.extra}
-                          onChange={(event) => handleRowChange(index, "extra", event.target.value)}
-                          className="w-full rounded border px-2 py-1 text-sm"
-                          disabled={!canEdit}
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <textarea
-                          rows={1}
-                          value={row.comment}
-                          onChange={(event) => handleRowChange(index, "comment", event.target.value)}
-                          className="w-full rounded border px-2 py-1 text-sm"
-                          disabled={!canEdit}
-                        />
-                      </td>
-                      <td className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide ${statusColor}`}>
-                        {status}
-                      </td>
-                      {canEdit && (
-                        <td className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">
-                          <button
-                            type="button"
-                            onClick={() => handleResetRow(index)}
-                            className="mr-3 text-[var(--brand-primary)]"
-                          >
-                            Revertir
-                          </button>
-                          {row.entryId && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveEntry(row)}
-                              className="text-rose-600"
-                            >
-                              Eliminar
-                            </button>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              {!loadingDetail && !bulkRows.length && (
-                <tr>
-                  <td colSpan={canEdit ? 7 : 6} className="px-4 py-6 text-center text-slate-500">
-                    {employeeOptions.length
-                      ? "Selecciona un trabajador para ver o editar sus horas."
-                      : "Registra a trabajadores activos para comenzar a cargar horas."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <TimesheetDetailTable
+        bulkRows={bulkRows}
+        initialRows={initialRows}
+        loadingDetail={loadingDetail}
+        selectedEmployee={selectedEmployee}
+        onRowChange={handleRowChange}
+        onResetRow={handleResetRow}
+        onRemoveEntry={handleRemoveEntry}
+        onBulkSave={handleBulkSave}
+        saving={saving}
+        pendingCount={pendingCount}
+        modifiedCount={modifiedCount}
+        monthLabel={monthLabel}
+        employeeOptions={employeeOptions}
+        setSelectedEmployeeId={setSelectedEmployeeId}
+      />
     </section>
   );
-}
-
-type SummaryTotals = {
-  hours: string;
-  overtime: string;
-  extraAmount: number;
-  subtotal: number;
-  retention: number;
-  net: number;
-};
-
-function buildBulkRows(month: string, entries: TimesheetEntry[], hourlyRate: number): BulkRow[] {
-  const base = dayjs(`${month}-01`);
-  const days = base.daysInMonth();
-  const entryMap = new Map(entries.map((entry) => [entry.work_date, entry]));
-  const rows: BulkRow[] = [];
-  for (let day = 1; day <= days; day += 1) {
-    const date = base.date(day).format("YYYY-MM-DD");
-    const entry = entryMap.get(date);
-    const extraMinutes = hourlyRate > 0 && entry && entry.extra_amount
-      ? Math.round((entry.extra_amount / hourlyRate) * 60)
-      : 0;
-    rows.push({
-      date,
-      worked: entry && entry.worked_minutes ? minutesToDuration(entry.worked_minutes) : "",
-      overtime: entry && entry.overtime_minutes ? minutesToDuration(entry.overtime_minutes) : "",
-      extra: extraMinutes ? minutesToDuration(extraMinutes) : "",
-      comment: entry?.comment ?? "",
-      entryId: entry?.id ?? null,
-    });
-  }
-  return rows;
-}
-
-function hasRowData(row: BulkRow) {
-  return Boolean(row.worked.trim() || row.overtime.trim() || row.extra.trim() || row.comment.trim());
-}
-
-function isRowDirty(row: BulkRow, initial?: BulkRow) {
-  if (!initial) return hasRowData(row);
-  return ["worked", "overtime", "extra", "comment"].some((field) => (row as any)[field] !== (initial as any)[field]);
-}
-
-function computeStatus(row: BulkRow, dirty: boolean) {
-  if (row.entryId && !dirty) return "Registrado";
-  if (row.entryId && dirty) return "Sin guardar";
-  if (!row.entryId && hasRowData(row)) return "Sin guardar";
-  return "Pendiente";
-}
-
-function parseDuration(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return 0;
-  if (!/^[0-9]{1,2}:[0-9]{2}$/.test(trimmed)) return null;
-  const [hours, minutes] = trimmed.split(":").map(Number);
-  if (minutes >= 60) return null;
-  return hours * 60 + minutes;
-}
-
-function formatDateLabel(value: string) {
-  return dayjs(value).format("DD-MM-YYYY");
-}
-
-function computeExtraAmount(extraMinutes: number, hourlyRate: number) {
-  if (!hourlyRate || extraMinutes <= 0) return 0;
-  return Math.round((extraMinutes / 60) * hourlyRate * 100) / 100;
-}
-
-function formatExtraHours(row: TimesheetSummaryRow) {
-  if (!row.hourlyRate || !row.extraAmount) return "00:00";
-  const minutes = Math.round((row.extraAmount / row.hourlyRate) * 60);
-  return minutesToDuration(minutes);
-}
-
-function formatTotalExtraHours(rows: TimesheetSummaryRow[]) {
-  let totalMinutes = 0;
-  for (const row of rows) {
-    if (row.hourlyRate && row.extraAmount) {
-      totalMinutes += Math.round((row.extraAmount / row.hourlyRate) * 60);
-    }
-  }
-  return minutesToDuration(totalMinutes);
 }

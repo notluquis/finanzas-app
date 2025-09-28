@@ -4,7 +4,7 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { ensureSchema } from "./db.js";
+import { ensureSchema, getPool } from "./db.js";
 import { PORT } from "./config.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
@@ -14,6 +14,8 @@ import { registerEmployeeRoutes } from "./routes/employees.js";
 import { registerTimesheetRoutes } from "./routes/timesheets.js";
 import { registerCounterpartRoutes } from "./routes/counterparts.js";
 import suppliesRouter from "./routes/supplies.js";
+import { registerInventoryRoutes } from "./routes/inventory.js";
+import { registerRoleRoutes } from "./routes/roles.js";
 
 const app = express();
 
@@ -38,10 +40,40 @@ registerBalanceRoutes(app);
 registerEmployeeRoutes(app);
 registerTimesheetRoutes(app);
 registerCounterpartRoutes(app);
+registerInventoryRoutes(app);
+registerRoleRoutes(app);
 app.use("/api/supplies", suppliesRouter);
 
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok" });
+app.get("/api/health", async (_req, res) => {
+  console.info("[steps][health] Step 0: /api/health recibido");
+  const checks: {
+    db: { status: "ok" | "error"; latency: number | null; message?: string };
+  } = {
+    db: { status: "ok", latency: null },
+  };
+
+  let status: "ok" | "degraded" | "error" = "ok";
+
+  const start = Date.now();
+  try {
+    const pool = getPool();
+    console.info("[steps][health] Step 1: ejecutando SELECT 1");
+    await pool.execute("SELECT 1");
+    checks.db.latency = Date.now() - start;
+    console.info("[steps][health] Step 2: SELECT 1 OK", checks.db.latency);
+  } catch (error) {
+    checks.db.status = "error";
+    checks.db.message = error instanceof Error ? error.message : "Error desconocido";
+    status = "degraded";
+    console.error("[steps][health] Step error: fallo en consulta", error);
+  }
+
+  res.json({
+    status,
+    timestamp: new Date().toISOString(),
+    checks,
+  });
+  console.info("[steps][health] Step final: respuesta enviada", status);
 });
 
 // --- Production Frontend Serving ---

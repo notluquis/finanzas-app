@@ -8,7 +8,7 @@ import {
 } from "../lib/http.js";
 import { logEvent, logWarn, requestContext } from "../lib/logger.js";
 import { sessionCookieName, sessionCookieOptions } from "../config.js";
-import { findUserByEmail, findUserById } from "../db.js";
+import { findUserByEmail, findUserById, findEmployeeByEmail, listRoleMappings } from "../db.js";
 import type { AuthenticatedRequest } from "../types.js";
 import { loginSchema } from "../schemas.js";
 
@@ -39,13 +39,20 @@ export function registerAuthRoutes(app: express.Express) {
         return res.status(401).json({ status: "error", message: "El correo o la contraseña no son correctos" });
       }
 
-      const token = issueToken({ userId: user.id, email: user.email, role: user.role });
+      // --- Role Governance Logic ---
+      const employee = await findEmployeeByEmail(user.email);
+      const mappings = await listRoleMappings();
+      const mapping = employee ? mappings.find(m => m.employee_role === employee.role) : undefined;
+      const effectiveRole = mapping ? mapping.app_role : user.role;
+      // --- End Role Governance Logic ---
+
+      const token = issueToken({ userId: user.id, email: user.email, role: effectiveRole });
       res.cookie(sessionCookieName, token, sessionCookieOptions);
 
       logEvent("auth/login:success", requestContext(req, { userId: user.id, email: user.email }));
       res.json({
         status: "ok",
-        user: sanitizeUser(user),
+        user: { ...sanitizeUser(user), role: effectiveRole },
       });
     })
   );
@@ -75,7 +82,16 @@ export function registerAuthRoutes(app: express.Express) {
         return res.status(401).json({ status: "error", message: "La sesión ha expirado" });
       }
 
-      res.json({ status: "ok", user: sanitizeUser(user) });
+      // --- Role Governance Logic ---
+      const employee = await findEmployeeByEmail(user.email);
+      const mappings = await listRoleMappings();
+      const mapping = employee ? mappings.find(m => m.employee_role === employee.role) : undefined;
+      const effectiveRole = mapping ? mapping.app_role : user.role;
+      
+      const finalUser = { ...sanitizeUser(user), role: effectiveRole };
+      // --- End Role Governance Logic ---
+
+      res.json({ status: "ok", user: finalUser });
     })
   );
 }

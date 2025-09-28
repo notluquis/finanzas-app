@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import Button from "../../../components/Button";
 import { fmtCLP } from "../../../lib/format";
 import { COLUMN_DEFS, type ColumnKey } from "../constants";
 import type { LedgerRow } from "../types";
@@ -30,12 +31,12 @@ export function TransactionsTable({
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--brand-primary)]/15 bg-white shadow-sm">
-      <table className="min-w-full text-sm">
-        <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+    <div className="glass-card glass-underlay-gradient overflow-hidden">
+      <table className="min-w-full text-sm text-slate-600">
+        <thead className="bg-white/55 text-[var(--brand-primary)] backdrop-blur-md">
           <tr>
             {activeColumns.map((column) => (
-              <th key={column.key} className="px-4 py-3 text-left font-semibold">
+              <th key={column.key} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">
                 {column.label}
               </th>
             ))}
@@ -43,7 +44,10 @@ export function TransactionsTable({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id} className="odd:bg-slate-50/60">
+            <tr
+              key={row.id}
+              className="border-b border-white/40 bg-white/40 text-slate-700 transition-colors last:border-none even:bg-white/25 hover:bg-[var(--brand-primary)]/10"
+            >
               {activeColumns.map((column) => (
                 <td key={column.key} className="px-4 py-3">
                   {renderCell(column.key, row, hasAmounts)}
@@ -53,7 +57,7 @@ export function TransactionsTable({
           ))}
           {!rows.length && !loading && (
             <tr>
-              <td colSpan={activeColumns.length} className="px-4 py-6 text-center text-gray-500">
+              <td colSpan={activeColumns.length} className="px-4 py-6 text-center text-slate-500">
                 No hay resultados con los filtros actuales.
               </td>
             </tr>
@@ -67,17 +71,17 @@ export function TransactionsTable({
           )}
         </tbody>
       </table>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--brand-primary)]/10 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/40 bg-white/45 px-4 py-3 text-xs text-slate-600">
+        <div className="font-semibold text-slate-600/90">
           Página {page} de {totalPages} · {total} movimientos
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2">
             <span>Tamaño de página</span>
             <select
               value={pageSize}
               onChange={(event) => onPageSizeChange(Number(event.target.value))}
-              className="rounded border px-2 py-1"
+              className="glass-input py-1 text-xs"
             >
               {[20, 50, 100, 200].map((size) => (
                 <option key={size} value={size}>
@@ -87,22 +91,24 @@ export function TransactionsTable({
             </select>
           </label>
           <div className="flex items-center gap-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="xs"
               onClick={() => onPageChange(Math.max(1, page - 1))}
               disabled={page <= 1 || loading}
-              className="rounded border px-3 py-1 disabled:opacity-50"
             >
               Anterior
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
+              size="xs"
               onClick={() => onPageChange(Math.min(totalPages, page + 1))}
               disabled={page >= totalPages || loading}
-              className="rounded border px-3 py-1 disabled:opacity-50"
             >
               Siguiente
-            </button>
+            </Button>
           </div>
         </div>
       </div>

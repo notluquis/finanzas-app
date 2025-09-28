@@ -31,11 +31,12 @@ export function issueToken(session: AuthSession) {
   );
 }
 
-export function sanitizeUser(user: { id: number; email: string; role: UserRole }) {
+export function sanitizeUser(user: { id: number; email: string; role: UserRole; name: string | null }) {
   return {
     id: user.id,
     email: user.email,
     role: user.role,
+    name: user.name,
   };
 }
 
@@ -44,13 +45,19 @@ export function authenticate(
   res: express.Response,
   next: express.NextFunction
 ) {
+  console.info("[steps][server/auth] Step 1: authenticate", {
+    url: req.originalUrl,
+    method: req.method,
+  });
   const token = req.cookies?.[sessionCookieName];
   if (!token) {
+    console.warn("[steps][server/auth] Step 2: sin cookie de sesión");
     return res.status(401).json({ status: "error", message: "No autorizado" });
   }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
+    console.info("[steps][server/auth] Step 3: token verificado");
     if (!decoded || typeof decoded.sub !== "string") {
       throw new Error("Token inválido");
     }
@@ -60,8 +67,10 @@ export function authenticate(
       email: String(decoded.email),
       role: (decoded.role as UserRole) ?? "VIEWER",
     };
+    console.info("[steps][server/auth] Step 4: req.auth establecido", req.auth);
     next();
   } catch (error) {
+    console.error("[steps][server/auth] Step error: token inválido", error);
     res.clearCookie(sessionCookieName, { ...sessionCookieOptions, maxAge: undefined });
     return res.status(401).json({ status: "error", message: "Sesión expirada" });
   }

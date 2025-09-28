@@ -1,3 +1,5 @@
+import type { DbMovement } from "@/features/transactions/types";
+
 export type CounterpartPersonType = "PERSON" | "COMPANY" | "OTHER";
 export type CounterpartCategory =
   | "SUPPLIER"
@@ -69,4 +71,26 @@ export type CounterpartSummary = {
     total: number;
     count: number;
   }>;
+};
+
+export type AccountTransactionsState = {
+  expanded: boolean;
+  loading: boolean;
+  error: string | null;
+  rows: DbMovement[];
+};
+
+export type TransactionsApiResponse = {
+  status: "ok" | "error";
+  data: DbMovement[];
+  message?: string;
+};
+
+export type AccountGroup = {
+  key: string;
+  label: string;
+  bankName: string | null;
+  holder: string | null;
+  concept: string;
+  accounts: CounterpartAccount[];
 };

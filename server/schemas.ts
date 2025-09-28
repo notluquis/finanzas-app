@@ -146,3 +146,22 @@ export const timesheetBulkSchema = z.object({
     .max(200),
   remove_ids: z.array(z.coerce.number().int().positive()).optional(),
 });
+
+export const inventoryCategorySchema = z.object({
+  name: z.string().min(1).max(255),
+});
+
+export const inventoryItemSchema = z.object({
+  category_id: z.coerce.number().int().positive().nullable(),
+  name: z.string().min(1).max(255),
+  description: z.string().nullable().optional(),
+  current_stock: z.coerce.number().int().default(0),
+});
+
+export const inventoryItemUpdateSchema = inventoryItemSchema.partial();
+
+export const inventoryMovementSchema = z.object({
+  item_id: z.coerce.number().int().positive(),
+  quantity_change: z.coerce.number().int(),
+  reason: z.string().min(1).max(255),
+});

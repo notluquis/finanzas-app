@@ -36,25 +36,29 @@ export function BalanceSummary({ report, loading, error }: BalanceSummaryProps) 
   const { mismatchDays, hasRecordedBalances, lastRecorded, lastExpected } = useBalanceReportSummary(report);
 
   return (
-    <section className="space-y-3 rounded-2xl border border-[var(--brand-primary)]/10 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-[var(--brand-primary)]">Conciliación de saldo</h2>
-      {error && <p className="rounded bg-rose-100 px-3 py-2 text-xs text-rose-700">{error}</p>}
+    <section className="glass-card glass-underlay-gradient space-y-4 p-6">
+      <h2 className="text-lg font-semibold text-[var(--brand-primary)] drop-shadow-sm">Conciliación de saldo</h2>
+      {error && (
+        <p className="glass-card border-l-4 border-rose-300/80 bg-gradient-to-r from-rose-50/65 via-white/70 to-white/55 px-4 py-2 text-xs text-rose-700">
+          {error}
+        </p>
+      )}
       {loading ? (
         <p className="text-sm text-[var(--brand-primary)]">Cargando conciliación...</p>
       ) : !report ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-600">
           Selecciona un rango para revisar los saldos de cierre registrados.
         </p>
       ) : !hasRecordedBalances ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-600">
           Aún no registras saldos de cierre para este rango. Actualiza la sección de Saldos diarios
           en la página de movimientos para comenzar la conciliación.
         </p>
       ) : (
         <div className="space-y-3 text-xs text-slate-600">
           {report.previous && (
-            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-slate-500">
-              Saldo cierre previo ({dayjs(report.previous.date).format("DD-MM-YYYY")} 23:59):
+            <div className="rounded-2xl border border-white/55 bg-white/60 px-4 py-3 text-slate-600">
+              Saldo cierre previo ({dayjs(report.previous.date).format("DD-MM-YYYY")} 23:59)
               <span className="ml-2 font-semibold text-slate-800">
                 {fmtCLP(report.previous.balance)}
               </span>
@@ -62,7 +66,7 @@ export function BalanceSummary({ report, loading, error }: BalanceSummaryProps) 
           )}
 
           {lastRecorded && (
-            <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700">
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/80 px-4 py-3 text-emerald-700">
               Último saldo registrado ({dayjs(lastRecorded.date).format("DD-MM-YYYY")} 23:59)
               <span className="ml-2 font-semibold text-emerald-800">
                 {fmtCLP(lastRecorded.recordedBalance!)}
@@ -76,7 +80,7 @@ export function BalanceSummary({ report, loading, error }: BalanceSummaryProps) 
           )}
 
           {!lastRecorded && lastExpected && (
-            <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
+            <div className="rounded-2xl border border-white/55 bg-white/60 px-4 py-3 text-slate-600">
               Saldo esperado del último día ({dayjs(lastExpected.date).format("DD-MM-YYYY")}):
               <span className="ml-2 font-semibold text-slate-800">
                 {fmtCLP(lastExpected.expectedBalance!)}
@@ -99,7 +103,7 @@ export function BalanceSummary({ report, loading, error }: BalanceSummaryProps) 
 
 function MismatchSummary({ mismatchDays }: { mismatchDays: MismatchDay[] }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-2 rounded-2xl border border-rose-200/70 bg-rose-50/60 px-4 py-3">
       <p className="font-semibold text-rose-600">
         Hay {mismatchDays.length} día{mismatchDays.length > 1 ? "s" : ""} con diferencias entre el saldo esperado y el
         registrado.

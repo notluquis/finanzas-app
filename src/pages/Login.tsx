@@ -3,6 +3,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import { logger } from "../lib/logger";
+import Button from "../components/Button";
+import Input from "../components/Input";
+import Alert from "../components/Alert";
+import ConnectionIndicator from "../components/ConnectionIndicator";
 
 export default function Login() {
   const { login } = useAuth();
@@ -21,73 +25,76 @@ export default function Login() {
     setLoading(true);
     setError(null);
     try {
+      const timeoutSeconds = Number(import.meta.env?.VITE_AUTH_TIMEOUT ?? 8);
+      console.debug("[steps][login] Step 1: preparando envío de credenciales", email);
       logger.info("[login-page] envío credenciales", { email });
+      console.debug("[steps][login] Step 2: llamando login()" , email);
+      console.debug("[steps][login] Timeout configurado", { timeoutSeconds });
       await login(email, password);
       logger.info("[login-page] login OK", { email });
+      console.debug("[steps][login] Step 3: login() resuelto, navegando", from);
       navigate(from, { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo iniciar sesión";
       setError(message);
       logger.error("[login-page] login error", { email, message });
+      console.error("[steps][login] Step error: fallo al iniciar sesión", message);
     } finally {
+      console.debug("[steps][login] Step final: reseteando estado de carga");
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f6fbff] p-6">
-      <div className="w-full max-w-md rounded-3xl border border-[var(--brand-primary)]/15 bg-white p-8 shadow-xl">
+    <div className="relative flex min-h-screen items-center justify-center px-6 py-12">
+      <div className="absolute inset-x-0 top-0 h-1/3 max-h-[220px] rounded-b-[50%] bg-[radial-gradient(circle_at_top,_rgba(14,100,183,0.18),_transparent_70%)]" />
+      <div className="absolute inset-x-0 bottom-0 h-1/3 max-h-[220px] rounded-t-[55%] bg-[radial-gradient(circle_at_bottom,_rgba(241,167,34,0.22),_transparent_72%)]" />
+      <div className="glass-card glass-underlay-gradient relative z-10 w-full max-w-md p-10">
+        <div className="mb-6 flex justify-end">
+          <ConnectionIndicator />
+        </div>
         <div className="flex flex-col items-center gap-3 text-center">
           <img
             src={settings.logoUrl}
             alt={settings.orgName}
             className="max-h-20 object-contain"
           />
-          <h1 className="text-xl font-semibold text-[var(--brand-primary)]">
+          <h1 className="text-xl font-semibold text-[var(--brand-primary)] drop-shadow-sm">
             Inicia sesión en {settings.orgName}
           </h1>
-          <p className="text-sm text-slate-500">Usa tu correo corporativo para continuar.</p>
+          <p className="text-sm text-slate-600/90">Usa tu correo corporativo para continuar.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4 text-sm">
-          <label className="flex flex-col gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Correo electrónico</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="rounded border px-3 py-2"
-              placeholder="usuario@bioalergia.cl"
-              autoComplete="email"
-              required
-            />
-          </label>
-          <label className="flex flex-col gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Contraseña
-            </span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="rounded border px-3 py-2"
-              placeholder="••••••••"
-              autoComplete="current-password"
-              required
-            />
-          </label>
-          {error && <p className="rounded-lg bg-rose-100 px-4 py-2 text-rose-700">{error}</p>}
-          <button
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <Input
+            label="Correo electrónico"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="usuario@bioalergia.cl"
+            autoComplete="email"
+            required
+          />
+          <Input
+            label="Contraseña"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="••••••••"
+            autoComplete="current-password"
+            required
+          />
+          {error && <Alert variant="error">{error}</Alert>}
+          <Button
             type="submit"
             disabled={loading}
-            className="w-full rounded-full px-4 py-2 text-sm font-semibold text-white shadow disabled:cursor-not-allowed"
-            style={{ backgroundColor: "var(--brand-primary)" }}
+            className="w-full"
           >
             {loading ? "Ingresando..." : "Ingresar"}
-          </button>
+          </Button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-slate-500">
+        <p className="mt-6 text-center text-xs text-slate-600/90">
           ¿Olvidaste tu contraseña? Contacta a <strong>{settings.supportEmail}</strong>
         </p>
       </div>

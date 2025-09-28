@@ -18,6 +18,7 @@ import TimesheetsPage from "./pages/Timesheets";
 import ParticipantInsightsPage from "./pages/ParticipantInsights";
 import CounterpartsPage from "./pages/Counterparts";
 import SuppliesPage from "./pages/Supplies";
+import InventoryPage from "./pages/Inventory";
 
 const router = createBrowserRouter([
   {
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
       { path: "/data", element: <Navigate to="/transactions/movements" replace /> },
       { path: "/stats", element: <Stats /> },
       { path: "/settings", element: <Settings /> },
+      { path: "/inventory", element: <InventoryPage /> },
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },

@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
-import { coerceAmount } from "../lib/format";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import { logger } from "../lib/logger";
-import { isCashbackCandidate } from "../../shared/cashback";
-import { roundCurrency } from "../../shared/currency";
 import {
   TransactionsFilters,
 } from "../features/transactions/components/TransactionsFilters";
@@ -26,23 +23,19 @@ import {
   formatBalanceInput,
   parseBalanceInput,
 } from "../features/balances/utils";
+import { useQuickDateRange } from "../features/balances/hooks/useQuickDateRange";
+import { useDailyBalanceManagement } from "../features/balances/hooks/useDailyBalanceManagement";
+import { useTransactionData } from "../features/transactions/hooks/useTransactionData";
+import { useLedger } from "../features/transactions/hooks/useLedger";
+import Alert from "../components/Alert";
+import Input from "../components/Input";
+import Button from "../components/Button";
+import Checkbox from "../components/Checkbox";
+import { fetchBalances } from "../features/balances/api";
 
 const DEFAULT_PAGE_SIZE = 50;
 
-type ApiResponse = {
-  status: "ok" | "error";
-  data: DbMovement[];
-  hasAmounts?: boolean;
-  total?: number;
-  page?: number;
-  pageSize?: number;
-  message?: string;
-};
-
 export default function Data() {
-  const [rows, setRows] = useState<DbMovement[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [initialBalance, setInitialBalance] = useState<string>("0");
   const [initialBalanceEdited, setInitialBalanceEdited] = useState(false);
   const [filters, setFilters] = useState<Filters>({
@@ -55,30 +48,13 @@ export default function Data() {
     direction: "",
     includeAmounts: false,
   });
-  const [hasAmounts, setHasAmounts] = useState(false);
   const [balancesReport, setBalancesReport] = useState<BalancesApiResponse | null>(null);
-  const [balancesDrafts, setBalancesDrafts] = useState<Record<string, BalanceDraft>>({});
-  const [balancesSaving, setBalancesSaving] = useState<Record<string, boolean>>({});
-  const [balancesError, setBalancesError] = useState<string | null>(null);
   const [balancesLoading, setBalancesLoading] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
     () => new Set(COLUMN_DEFS.map((column) => column.key))
   );
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [total, setTotal] = useState(0);
 
-  const quickMonths = useMemo(() => {
-    const months: Array<{ value: string; label: string; from: string; to: string }> = [];
-    for (let i = 0; i < 12; i++) {
-      const date = dayjs().subtract(i, "month").startOf("month");
-      const label = date.format("MMMM YYYY");
-      const start = date.format("YYYY-MM-DD");
-      const end = date.endOf("month").format("YYYY-MM-DD");
-      months.push({ value: start, label, from: start, to: end });
-    }
-    return months;
-  }, []);
+  const { quickMonths } = useQuickDateRange();
 
   const quickRange = useMemo(() => {
     const match = quickMonths.find(({ from: start, to: end }) => start === filters.from && end === filters.to);
@@ -90,47 +66,6 @@ export default function Data() {
 
   const canView = hasRole("GOD", "ADMIN", "ANALYST", "VIEWER");
 
-  const initialBalanceNumber = useMemo(
-    () => coerceAmount(initialBalance),
-    [initialBalance]
-  );
-
-  useEffect(() => {
-    if (canView) {
-      refresh(filters, 1, pageSize);
-    } else {
-      setRows([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canView]);
-
-  const ledger = useMemo<LedgerRow[]>(() => {
-    let balance = initialBalanceNumber;
-    const chronological = rows
-      .slice()
-      .sort((a, b) => (a.timestamp > b.timestamp ? 1 : -1))
-      .map((row) => {
-        const amount = row.amount ?? 0;
-        const delta = isCashbackCandidate(row)
-          ? 0
-          : row.direction === "IN"
-            ? amount
-            : row.direction === "OUT"
-              ? -amount
-              : 0;
-        if (hasAmounts) {
-          balance += delta;
-        }
-        return {
-          ...row,
-          runningBalance: hasAmounts ? balance : 0,
-          delta,
-        };
-      });
-
-    return chronological.reverse();
-  }, [rows, initialBalanceNumber, hasAmounts]);
-
   const loadBalances = useCallback(
     async (fromValue: string, toValue: string) => {
       if (!fromValue || !toValue) {
@@ -139,20 +74,12 @@ export default function Data() {
       }
 
       setBalancesLoading(true);
-      setBalancesError(null);
       try {
-        const params = new URLSearchParams({ from: fromValue, to: toValue });
-        const res = await fetch(`/api/balances?${params.toString()}`, {
-          credentials: "include",
-        });
-        const payload = (await res.json()) as BalancesApiResponse & { message?: string };
-        if (!res.ok || payload.status !== "ok") {
-          throw new Error(payload.message || "No se pudieron obtener los saldos diarios");
-        }
+        const payload = await fetchBalances(fromValue, toValue);
         setBalancesReport(payload);
       } catch (err) {
         const message = err instanceof Error ? err.message : "No se pudieron obtener los saldos diarios";
-        setBalancesError(message);
+        // setBalancesError(message);
         setBalancesReport(null);
       } finally {
         setBalancesLoading(false);
@@ -160,6 +87,31 @@ export default function Data() {
     },
     []
   );
+
+  const { drafts: balancesDrafts, saving: balancesSaving, error: balancesError, handleDraftChange: handleBalanceDraftChange, handleSave: handleBalanceSave, setError: setBalancesError, setDrafts: setBalancesDrafts } = useDailyBalanceManagement({
+    from: filters.from,
+    to: filters.to,
+    loadBalances,
+  });
+
+  const { rows, setRows, loading, error, hasAmounts, page, pageSize, total, refresh, setPageSize, setPage } = useTransactionData({
+    canView,
+    loadBalances,
+  });
+
+  const ledger = useLedger({
+    rows,
+    initialBalance,
+    hasAmounts,
+  });
+
+  useEffect(() => {
+    if (canView) {
+      refresh(filters, 1, pageSize);
+    } else {
+      setRows([]);
+    }
+  }, [canView, filters, pageSize, refresh]);
 
   useEffect(() => {
     if (!balancesReport) {
@@ -175,7 +127,7 @@ export default function Data() {
       };
     }
     setBalancesDrafts(drafts);
-  }, [balancesReport]);
+  }, [balancesReport, setBalancesDrafts]);
 
   useEffect(() => {
     if (!balancesReport || initialBalanceEdited) {
@@ -197,121 +149,12 @@ export default function Data() {
     }
   }, [balancesReport, initialBalance, initialBalanceEdited]);
 
-  async function refresh(next: Filters, nextPage = page, nextPageSize = pageSize) {
-    if (!canView) {
-      setRows([]);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      logger.info("[data] fetch:start", { filters: next, page: nextPage, pageSize: nextPageSize });
-      const params = new URLSearchParams();
-      params.set("page", String(nextPage));
-      params.set("pageSize", String(nextPageSize));
-      if (next.from) params.set("from", next.from);
-      if (next.to) params.set("to", next.to);
-        if (next.description) params.set("description", next.description);
-        if (next.sourceId) params.set("sourceId", next.sourceId);
-        if (next.origin) params.set("origin", next.origin);
-      if (next.destination) params.set("destination", next.destination);
-      if (next.direction) params.set("direction", next.direction);
-        if (next.includeAmounts) params.set("includeAmounts", "true");
-
-      const res = await fetch(`/api/transactions?${params.toString()}`, {
-        credentials: "include",
-      });
-      const payload = (await res.json()) as ApiResponse;
-      if (!res.ok || payload.status !== "ok") {
-        throw new Error(payload.message || "No se pudieron obtener los movimientos");
-      }
-      setRows(payload.data);
-      setHasAmounts(Boolean(payload.hasAmounts));
-      setTotal(payload.total ?? payload.data.length);
-      setPage(payload.page ?? nextPage);
-      setPageSize(payload.pageSize ?? nextPageSize);
-      await loadBalances(next.from, next.to);
-      logger.info("[data] fetch:success", {
-        rows: payload.data.length,
-        hasAmounts: Boolean(payload.hasAmounts),
-        total: payload.total,
-        page: payload.page,
-        pageSize: payload.pageSize,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Error inesperado al cargar";
-      setError(message);
-      setRows([]);
-      setHasAmounts(false);
-      logger.error("[data] fetch:error", message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   const handleFilterChange = (update: Partial<Filters>) => {
     setFilters((prev) => ({ ...prev, ...update }));
     if (Object.prototype.hasOwnProperty.call(update, "from") || Object.prototype.hasOwnProperty.call(update, "to")) {
       setInitialBalanceEdited(false);
     }
   };
-
-  const handleBalanceDraftChange = useCallback((date: string, patch: Partial<BalanceDraft>) => {
-    setBalancesDrafts((prev) => {
-      const previous = prev[date] ?? { value: "", note: "" };
-      return {
-        ...prev,
-        [date]: {
-          value: patch.value ?? previous.value,
-          note: patch.note ?? previous.note,
-        },
-      };
-    });
-  }, []);
-
-  const handleBalanceSave = useCallback(
-    async (date: string) => {
-      const draft = balancesDrafts[date];
-      if (!draft) return;
-
-      const parsedValue = parseBalanceInput(draft.value);
-      if (parsedValue == null) {
-        setBalancesError("Ingresa un saldo válido antes de guardar");
-        return;
-      }
-
-      setBalancesSaving((prev) => ({ ...prev, [date]: true }));
-      setBalancesError(null);
-
-      try {
-        const res = await fetch("/api/balances", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            date,
-            balance: parsedValue,
-            note: draft.note.trim() ? draft.note.trim() : undefined,
-          }),
-        });
-        const payload = (await res.json()) as { status: "ok" | "error"; message?: string };
-        if (!res.ok || payload.status !== "ok") {
-          throw new Error(payload.message || "No se pudo guardar el saldo diario");
-        }
-        await loadBalances(filters.from, filters.to);
-        setInitialBalanceEdited(false);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "No se pudo guardar el saldo diario";
-        setBalancesError(message);
-      } finally {
-        setBalancesSaving((prev) => ({ ...prev, [date]: false }));
-      }
-    },
-    [balancesDrafts, filters.from, filters.to, loadBalances]
-  );
 
   const handleResetInitialBalance = useCallback(() => {
     if (!balancesReport) return;
@@ -325,9 +168,9 @@ export default function Data() {
   return (
     <section className="space-y-6">
       {!canView ? (
-        <div className="rounded-2xl border border-rose-200 bg-white p-6 text-sm text-rose-600 shadow-sm">
+        <Alert variant="error">
           No tienes permisos para ver los movimientos almacenados.
-        </div>
+        </Alert>
       ) : (
         <>
           <TransactionsFilters
@@ -352,7 +195,7 @@ export default function Data() {
             }}
           />
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-2">
               <h1 className="text-2xl font-bold text-[var(--brand-primary)]">Movimientos en la base</h1>
               <p className="max-w-2xl text-sm text-slate-600">
@@ -362,74 +205,64 @@ export default function Data() {
               </p>
             </div>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                Saldo inicial (CLP)
-                <input
-                  type="text"
-                  value={initialBalance}
-                  onChange={(event) => {
-                    setInitialBalanceEdited(true);
-                    setInitialBalance(event.target.value);
-                  }}
-                  className="rounded border px-3 py-2 text-sm"
-                  placeholder="0"
-                />
-              </label>
-              <button
-                type="button"
+              <Input
+                label="Saldo inicial (CLP)"
+                type="text"
+                value={initialBalance}
+                onChange={(event) => {
+                  setInitialBalanceEdited(true);
+                  setInitialBalance(event.target.value);
+                }}
+                placeholder="0"
+                className="w-fit"
+              />
+              <Button
+                variant="secondary"
                 onClick={handleResetInitialBalance}
                 disabled={!balancesReport || balancesLoading}
-                className="self-end rounded border border-[var(--brand-primary)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--brand-primary)] disabled:opacity-50"
               >
                 Usar saldo diario
-              </button>
-              <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                Mes rápido
-                <select
-                  value={quickRange}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    if (value === "custom") return;
-                    const match = quickMonths.find((month) => month.value === value);
-                    if (!match) return;
-                    const nextFilters = { ...filters, from: match.from, to: match.to };
-                    setFilters(nextFilters);
-                    setInitialBalanceEdited(false);
-                    setPage(1);
-                    refresh(nextFilters, 1, pageSize);
-                  }}
-                  className="rounded border px-2 py-1"
-                >
-                  <option value="custom">Personalizado</option>
-                  {quickMonths.map((month) => (
-                    <option key={month.value} value={month.value}>
-                      {month.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="button"
+              </Button>
+              <Input
+                label="Mes rápido"
+                type="select"
+                value={quickRange}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === "custom") return;
+                  const match = quickMonths.find((month) => month.value === value);
+                  if (!match) return;
+                  const nextFilters = { ...filters, from: match.from, to: match.to };
+                  setFilters(nextFilters);
+                  setInitialBalanceEdited(false);
+                  setPage(1);
+                  refresh(nextFilters, 1, pageSize);
+                }}
+                className="w-fit"
+              >
+                <option value="custom">Personalizado</option>
+                {quickMonths.map((month) => (
+                  <option key={month.value} value={month.value}>
+                    {month.label}
+                  </option>
+                ))}
+              </Input>
+              <Button
                 onClick={() => refresh(filters, page, pageSize)}
                 disabled={loading}
-                className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow disabled:cursor-not-allowed"
-                style={{ backgroundColor: "var(--brand-primary)", opacity: loading ? 0.6 : 1 }}
               >
                 {loading ? "Actualizando..." : "Actualizar"}
-              </button>
-              <label className="flex items-center gap-2 text-xs text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={filters.includeAmounts}
-                  onChange={(event) => {
-                    const nextFilters = { ...filters, includeAmounts: event.target.checked };
-                    setFilters(nextFilters);
-                    logger.info("[data] toggle includeAmounts", nextFilters.includeAmounts);
-                    refresh(nextFilters, page, pageSize);
-                  }}
-                />
-                Mostrar montos
-              </label>
+              </Button>
+              <Checkbox
+                label="Mostrar montos"
+                checked={filters.includeAmounts}
+                onChange={(event) => {
+                  const nextFilters = { ...filters, includeAmounts: event.target.checked };
+                  setFilters(nextFilters);
+                  logger.info("[data] toggle includeAmounts", nextFilters.includeAmounts);
+                  refresh(nextFilters, page, pageSize);
+                }}
+              />
             </div>
           </div>
 
@@ -443,7 +276,7 @@ export default function Data() {
             error={balancesError}
           />
 
-          {error && <p className="rounded-lg bg-rose-100 px-4 py-3 text-sm text-rose-700">{error}</p>}
+          {error && <Alert variant="error">{error}</Alert>}
 
           <TransactionsTable
             rows={ledger}

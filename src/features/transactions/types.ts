@@ -39,3 +39,13 @@ export type Filters = {
   direction: "" | "IN" | "OUT" | "NEUTRO";
   includeAmounts: boolean;
 };
+
+export type ApiResponse = {
+  status: "ok" | "error";
+  data: DbMovement[];
+  hasAmounts?: boolean;
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  message?: string;
+};

@@ -54,3 +54,14 @@ export type TimesheetSummaryResponse = {
     net: number;
   };
 };
+
+export const EMPTY_BULK_ROW = {
+  date: "",
+  worked: "",
+  overtime: "",
+  extra: "",
+  comment: "",
+  entryId: null as number | null,
+};
+
+export type BulkRow = typeof EMPTY_BULK_ROW;

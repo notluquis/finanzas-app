@@ -52,3 +52,13 @@ export type ParticipantLeaderboardResponse = {
   status: "ok";
   participants: ParticipantSummaryRow[];
 };
+
+export type LeaderboardDisplayRow = {
+  key: string;
+  displayName: string;
+  rut: string;
+  account: string;
+  outgoingCount: number;
+  outgoingAmount: number;
+  selectKey: string;
+};

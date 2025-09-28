@@ -1,3 +1,4 @@
+import Button from "../../../components/Button";
 import type { Filters } from "../types";
 
 type TransactionsFiltersProps = {
@@ -14,7 +15,7 @@ export function TransactionsFilters({ filters, loading, onChange, onSubmit }: Tr
         event.preventDefault();
         onSubmit();
       }}
-      className="grid gap-4 rounded-2xl border border-[var(--brand-primary)]/10 bg-white p-6 text-xs text-slate-600 shadow-sm lg:grid-cols-4"
+      className="glass-card glass-underlay-gradient grid gap-4 p-6 text-xs text-slate-600 lg:grid-cols-4"
     >
       <label className="flex flex-col gap-2">
         <span className="font-semibold uppercase tracking-wide text-slate-500">Fecha desde</span>
@@ -22,7 +23,7 @@ export function TransactionsFilters({ filters, loading, onChange, onSubmit }: Tr
           type="date"
           value={filters.from}
           onChange={(event) => onChange({ from: event.target.value })}
-          className="rounded border px-2 py-1"
+          className="glass-input"
         />
       </label>
       <label className="flex flex-col gap-2">
@@ -31,7 +32,7 @@ export function TransactionsFilters({ filters, loading, onChange, onSubmit }: Tr
           type="date"
           value={filters.to}
           onChange={(event) => onChange({ to: event.target.value })}
-          className="rounded border px-2 py-1"
+          className="glass-input"
         />
       </label>
       <label className="flex flex-col gap-2">
@@ -40,7 +41,7 @@ export function TransactionsFilters({ filters, loading, onChange, onSubmit }: Tr
           type="text"
           value={filters.description}
           onChange={(event) => onChange({ description: event.target.value })}
-          className="rounded border px-2 py-1"
+          className="glass-input"
           placeholder="Contiene..."
         />
       </label>
@@ -50,7 +51,7 @@ export function TransactionsFilters({ filters, loading, onChange, onSubmit }: Tr
           type="text"
           value={filters.sourceId}
           onChange={(event) => onChange({ sourceId: event.target.value })}
-          className="rounded border px-2 py-1"
+          className="glass-input"
           placeholder="SOURCE_ID"
         />
       </label>
@@ -60,7 +61,7 @@ export function TransactionsFilters({ filters, loading, onChange, onSubmit }: Tr
           type="text"
           value={filters.origin}
           onChange={(event) => onChange({ origin: event.target.value })}
-          className="rounded border px-2 py-1"
+          className="glass-input"
           placeholder="Origen"
         />
       </label>
@@ -70,7 +71,7 @@ export function TransactionsFilters({ filters, loading, onChange, onSubmit }: Tr
           type="text"
           value={filters.destination}
           onChange={(event) => onChange({ destination: event.target.value })}
-          className="rounded border px-2 py-1"
+          className="glass-input"
           placeholder="Destino"
         />
       </label>
@@ -79,7 +80,7 @@ export function TransactionsFilters({ filters, loading, onChange, onSubmit }: Tr
         <select
           value={filters.direction}
           onChange={(event) => onChange({ direction: event.target.value as Filters["direction"] })}
-          className="rounded border px-2 py-1"
+          className="glass-input"
         >
           <option value="">Todos</option>
           <option value="IN">Ingreso</option>
@@ -88,13 +89,9 @@ export function TransactionsFilters({ filters, loading, onChange, onSubmit }: Tr
         </select>
       </label>
       <div className="flex items-end">
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-full bg-[var(--brand-primary)] px-4 py-2 text-sm font-semibold text-white shadow disabled:cursor-not-allowed"
-        >
+        <Button type="submit" disabled={loading} size="sm">
           {loading ? "Filtrando..." : "Aplicar filtros"}
-        </button>
+        </Button>
       </div>
     </form>
   );

@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "server": "tsx watch --tsconfig tsconfig.server.json server/index.ts",
+    "predev:full": "node scripts/reset-dev.mjs",
     "dev:full": "concurrently \"npm:dev\" \"npm:server\"",
     "build:server": "tsc -p tsconfig.server.json",
     "start": "node dist/server/index.js",

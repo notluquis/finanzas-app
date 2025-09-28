@@ -1,3 +1,6 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import mysql from "mysql2/promise";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import dotenv from "dotenv";
@@ -5,6 +8,7 @@ import bcrypt from "bcryptjs";
 import type { PayoutRecord } from "./transformPayouts.js";
 import { EFFECTIVE_TIMESTAMP_EXPR } from "./lib/transactions.js";
 import { normalizeRut, validateRut } from "./lib/rut.js";
+import { InventoryCategory, InventoryItem, InventoryMovement } from "./types.js";
 
 dotenv.config();
 
@@ -16,6 +20,7 @@ export type UserRecord = {
   email: string;
   role: UserRole;
   password_hash: string;
+  name: string | null;
 };
 
 export type CounterpartPersonType = "PERSON" | "COMPANY" | "OTHER";
@@ -138,6 +143,7 @@ export function getPool(): Pool {
     database: process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 8,
+    connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT ?? 5000),
     namedPlaceholders: false,
     dateStrings: true,
   });
@@ -355,6 +361,25 @@ export async function ensureSchema() {
 
   await seedDefaultSettings(pool);
   await seedDefaultAdmin(pool);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS role_mappings (
+      employee_role VARCHAR(120) NOT NULL,
+      app_role ENUM('GOD','ADMIN','ANALYST','VIEWER') NOT NULL,
+      PRIMARY KEY (employee_role)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const inventorySchemaPath = path.join(__dirname, 'sql', 'create_inventory_tables.sql');
+  const inventorySchemaSql = await fs.readFile(inventorySchemaPath, 'utf-8');
+  const inventoryStatements = inventorySchemaSql.split(';').filter(s => s.trim().length > 0);
+
+  for (const statement of inventoryStatements) {
+    if (statement.trim().length === 0) continue;
+    await pool.execute(statement);
+  }
 }
 
 export type DailyBalance = {
@@ -477,7 +502,7 @@ export async function getEmployeeById(id: number) {
   return row ? mapEmployeeRow(row) : null;
 }
 
-async function findEmployeeByEmail(email: string) {
+export async function findEmployeeByEmail(email: string) {
   const pool = getPool();
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT ${EMPLOYEE_FIELDS}
@@ -1467,7 +1492,10 @@ export async function assignAccountsToCounterpartByRut(counterpartId: number, ru
 export async function findUserByEmail(email: string): Promise<UserRecord | null> {
   const pool = getPool();
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT id, email, password_hash, role FROM users WHERE email = ? LIMIT 1`,
+    `SELECT u.id, u.email, u.password_hash, u.role, e.full_name as name
+     FROM users u
+     LEFT JOIN employees e ON u.email = e.email
+     WHERE u.email = ? LIMIT 1`,
     [email.toLowerCase()]
   );
 
@@ -1478,13 +1506,17 @@ export async function findUserByEmail(email: string): Promise<UserRecord | null>
     email: String(row.email),
     password_hash: String(row.password_hash),
     role: row.role as UserRole,
+    name: row.name ? String(row.name) : null,
   };
 }
 
 export async function findUserById(id: number): Promise<UserRecord | null> {
   const pool = getPool();
   const [rows] = await pool.execute<RowDataPacket[]>(
-    `SELECT id, email, password_hash, role FROM users WHERE id = ? LIMIT 1`,
+    `SELECT u.id, u.email, u.password_hash, u.role, e.full_name as name
+     FROM users u
+     LEFT JOIN employees e ON u.email = e.email
+     WHERE u.id = ? LIMIT 1`,
     [id]
   );
 
@@ -1495,6 +1527,7 @@ export async function findUserById(id: number): Promise<UserRecord | null> {
     email: String(row.email),
     password_hash: String(row.password_hash),
     role: row.role as UserRole,
+    name: row.name ? String(row.name) : null,
   };
 }
 
@@ -1502,4 +1535,118 @@ export function isRoleAtLeast(role: UserRole, expected: UserRole[]): boolean {
   if (role === "GOD") return true;
   if (expected.includes(role)) return true;
   return false;
+}
+
+// --- Role Mapping Functions ---
+
+export type RoleMapping = {
+  employee_role: string;
+  app_role: UserRole;
+};
+
+export async function listRoleMappings(): Promise<RoleMapping[]> {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT employee_role, app_role FROM role_mappings`
+  );
+  return rows as RoleMapping[];
+}
+
+export async function upsertRoleMapping(employee_role: string, app_role: UserRole): Promise<void> {
+  const pool = getPool();
+  await pool.query(
+    `INSERT INTO role_mappings (employee_role, app_role) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE app_role = VALUES(app_role)`,
+    [employee_role, app_role]
+  );
+}
+
+// --- Inventory Functions ---
+
+export async function listInventoryCategories(): Promise<InventoryCategory[]> {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT id, name, created_at FROM inventory_categories ORDER BY name ASC`
+  );
+  return rows as InventoryCategory[];
+}
+
+export async function createInventoryCategory(name: string): Promise<InventoryCategory> {
+  const pool = getPool();
+  const [result] = await pool.query<ResultSetHeader>(
+    `INSERT INTO inventory_categories (name) VALUES (?)`,
+    [name]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT id, name, created_at FROM inventory_categories WHERE id = ?`,
+    [result.insertId]
+  );
+  return rows[0] as InventoryCategory;
+}
+
+export async function listInventoryItems(): Promise<InventoryItem[]> {
+  const pool = getPool();
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT 
+      i.id, i.category_id, i.name, i.description, i.current_stock, i.created_at, i.updated_at, c.name as category_name
+     FROM inventory_items i
+     LEFT JOIN inventory_categories c ON i.category_id = c.id
+     ORDER BY i.name ASC`
+  );
+  return rows as InventoryItem[];
+}
+
+export async function createInventoryItem(item: Omit<InventoryItem, 'id' | 'created_at' | 'updated_at'>): Promise<InventoryItem> {
+  const pool = getPool();
+  const [result] = await pool.query<ResultSetHeader>(
+    `INSERT INTO inventory_items (category_id, name, description, current_stock) VALUES (?, ?, ?, ?)`,
+    [item.category_id, item.name, item.description, item.current_stock]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT id, category_id, name, description, current_stock, created_at, updated_at FROM inventory_items WHERE id = ?`,
+    [result.insertId]
+  );
+  return rows[0] as InventoryItem;
+}
+
+export async function updateInventoryItem(id: number, item: Partial<Omit<InventoryItem, 'id' | 'created_at' | 'updated_at'>>): Promise<InventoryItem> {
+  const pool = getPool();
+  const fields = Object.keys(item).map(k => `\`${k}\` = ?`).join(', ');
+  const values = Object.values(item);
+  await pool.query(
+    `UPDATE inventory_items SET ${fields} WHERE id = ?`,
+    [...values, id]
+  );
+  const [rows] = await pool.query<RowDataPacket[]>(
+    `SELECT id, category_id, name, description, current_stock, created_at, updated_at FROM inventory_items WHERE id = ?`,
+    [id]
+  );
+  return rows[0] as InventoryItem;
+}
+
+export async function deleteInventoryItem(id: number): Promise<void> {
+  const pool = getPool();
+  await pool.query('DELETE FROM inventory_items WHERE id = ?', [id]);
+}
+
+export async function createInventoryMovement(movement: Omit<InventoryMovement, 'id' | 'created_at'>): Promise<void> {
+  const pool = getPool();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.query(
+      `INSERT INTO inventory_movements (item_id, quantity_change, reason) VALUES (?, ?, ?)`,
+      [movement.item_id, movement.quantity_change, movement.reason]
+    );
+    await connection.query(
+      `UPDATE inventory_items SET current_stock = current_stock + ? WHERE id = ?`,
+      [movement.quantity_change, movement.item_id]
+    );
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
