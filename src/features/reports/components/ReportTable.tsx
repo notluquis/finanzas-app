@@ -20,15 +20,16 @@ function formatAmount(direction: Movement["direction"], amount: number) {
 export default function ReportTable({ ledger }: ReportTableProps) {
   return (
     <div className="glass-card glass-underlay-gradient overflow-hidden">
-      <table className="min-w-full text-sm text-slate-600">
-        <thead className="bg-white/55 text-[var(--brand-primary)]">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Fecha</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Descripción</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Desde</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Hacia</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Tipo</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Monto</th>
+      <div className="overflow-x-auto muted-scrollbar">
+        <table className="min-w-full text-sm text-slate-600">
+          <thead className="bg-white/55 text-[var(--brand-primary)]">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Fecha</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Descripción</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Desde</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Hacia</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Tipo</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Monto</th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Saldo cuenta</th>
           </tr>
         </thead>
@@ -67,6 +68,7 @@ export default function ReportTable({ ledger }: ReportTableProps) {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

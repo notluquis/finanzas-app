@@ -5,7 +5,6 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: "/intranet/",
   build: { 
     outDir: "dist/client",
     chunkSizeWarningLimit: 1000,

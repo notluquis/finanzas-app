@@ -12,13 +12,14 @@ interface HealthResponse {
   };
 }
 
-type IndicatorLevel = "online" | "degraded" | "offline";
+type IndicatorLevel = "online" | "degraded" | "offline" | "starting";
 
 type IndicatorState = {
   level: IndicatorLevel;
   fetchedAt: Date | null;
   message: string;
   details: string[];
+  retryCount: number;
 };
 
 const STATUS_COPY: Record<IndicatorLevel, { label: string; description: string }> = {
@@ -32,7 +33,11 @@ const STATUS_COPY: Record<IndicatorLevel, { label: string; description: string }
   },
   offline: {
     label: "Sin conexión",
-    description: "No pudimos contactar al servidor. Verifica el servicio." ,
+    description: "No pudimos contactar al servidor. Verifica el servicio.",
+  },
+  starting: {
+    label: "Servidor iniciando...",
+    description: "El servidor está arrancando. Esto puede tomar unos momentos.",
   },
 };
 
@@ -40,24 +45,29 @@ const INDICATOR_COLORS: Record<IndicatorLevel, string> = {
   online: "bg-emerald-400",
   degraded: "bg-amber-400",
   offline: "bg-rose-400",
+  starting: "bg-blue-400 animate-pulse",
 };
 
 export function ConnectionIndicator() {
   const [state, setState] = useState<IndicatorState>({
-    level: "offline",
+    level: "starting",
     fetchedAt: null,
-    message: STATUS_COPY.offline.description,
-    details: [],
+    message: STATUS_COPY.starting.description,
+    details: ["Intentando conectar al servidor..."],
+    retryCount: 0,
   });
   const [open, setOpen] = useState(false);
+  const [hasConnectedOnce, setHasConnectedOnce] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     let intervalId: number | null = null;
+    let timeoutId: number | null = null;
 
     async function fetchHealth() {
       const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+      const requestTimeoutId = window.setTimeout(() => controller.abort(), 5000);
+      
       try {
         console.debug("[steps][health] Step 1: consultar /api/health");
         const res = await fetch("/api/health", {
@@ -66,13 +76,24 @@ export function ConnectionIndicator() {
         });
         const fetchedAt = new Date();
         console.debug("[steps][health] Step 2: respuesta /api/health", res.status);
+        
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
+        
         const payload = (await res.json()) as HealthResponse;
         if (cancelled) return;
 
         console.debug("[steps][health] Step 3: payload health", payload.status);
+        
+        // Marcar que hemos conectado al menos una vez
+        if (!hasConnectedOnce) {
+          setHasConnectedOnce(true);
+          // Mostrar notificación de éxito brevemente
+          setOpen(true);
+          timeoutId = window.setTimeout(() => setOpen(false), 3000);
+        }
+        
         const details: string[] = [];
         if (payload.checks?.db) {
           const dbCheck = payload.checks.db;
@@ -93,6 +114,7 @@ export function ConnectionIndicator() {
             fetchedAt,
             message: STATUS_COPY.online.description,
             details,
+            retryCount: 0,
           });
         } else if (payload.status === "degraded") {
           setState({
@@ -100,6 +122,7 @@ export function ConnectionIndicator() {
             fetchedAt,
             message: STATUS_COPY.degraded.description,
             details,
+            retryCount: 0,
           });
         } else {
           setState({
@@ -107,40 +130,58 @@ export function ConnectionIndicator() {
             fetchedAt,
             message: STATUS_COPY.offline.description,
             details,
+            retryCount: 0,
           });
         }
       } catch (error) {
         if (cancelled) return;
+        
         const fetchedAt = new Date();
         console.error("[steps][health] Step error: fallo en health", error);
-        const detailMessage =
-          error instanceof Error
-            ? error.message === "The user aborted a request."
-              ? "Conexión agotada (timeout)"
-              : error.message
-            : "Error desconocido";
+        
+        setState(prevState => {
+          const newRetryCount = prevState.retryCount + 1;
+          const isStarting = !hasConnectedOnce && newRetryCount < 6; // Primeros 30 segundos
+          
+          const detailMessage =
+            error instanceof Error
+              ? error.message === "The user aborted a request."
+                ? "Conexión agotada (timeout)"
+                : error.message
+              : "Error desconocido";
 
-        setState({
-          level: "offline",
-          fetchedAt,
-          message: STATUS_COPY.offline.description,
-          details: [detailMessage],
+          return {
+            level: isStarting ? "starting" : "offline",
+            fetchedAt,
+            message: isStarting ? STATUS_COPY.starting.description : STATUS_COPY.offline.description,
+            details: isStarting 
+              ? [`Intento ${newRetryCount}/6: ${detailMessage}`]
+              : [detailMessage],
+            retryCount: newRetryCount,
+          };
         });
+        
+        // Mostrar automáticamente el estado si está arrancando
+        if (!hasConnectedOnce) {
+          setOpen(true);
+        }
       } finally {
-        window.clearTimeout(timeoutId);
+        window.clearTimeout(requestTimeoutId);
         console.debug("[steps][health] Step final: actualización completa");
       }
     }
 
     fetchHealth();
-    intervalId = window.setInterval(fetchHealth, 30000);
+    intervalId = window.setInterval(fetchHealth, 5000); // Más frecuente durante el inicio
 
     return () => {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
+      if (timeoutId) window.clearTimeout(timeoutId);
     };
-  }, []);
+  }, [hasConnectedOnce]);
 
+  // Auto-cerrar después de un tiempo si no está online
   useEffect(() => {
     if (!open || state.level === "online") return;
     const timer = window.setTimeout(() => setOpen(false), 8000);
@@ -159,9 +200,7 @@ export function ConnectionIndicator() {
         aria-label={`Estado de la conexión: ${statusCopy.label}`}
       >
         <span
-          className={`h-2.5 w-2.5 rounded-full shadow-inner transition ${INDICATOR_COLORS[state.level]} ${
-            state.level === "offline" ? "animate-pulse" : ""
-          }`}
+          className={`h-2.5 w-2.5 rounded-full shadow-inner transition ${INDICATOR_COLORS[state.level]}`}
         />
         <span className="hidden sm:inline">{statusCopy.label}</span>
       </button>
@@ -184,6 +223,11 @@ export function ConnectionIndicator() {
                   <li key={index}>• {detail}</li>
                 ))}
               </ul>
+            )}
+            {state.level === "starting" && (
+              <div className="rounded-lg bg-blue-50 p-2 text-xs text-blue-700">
+                💡 El servidor puede tardar 10-30 segundos en inicializar completamente.
+              </div>
             )}
             <div className="flex justify-between text-[11px] uppercase tracking-wide text-slate-400">
               <span>Servicio API</span>

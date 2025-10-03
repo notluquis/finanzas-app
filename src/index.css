@@ -115,8 +115,10 @@ body::before {
   opacity: 0.65;
 }
 
+/* === SCROLLBAR UTILITIES === */
 .muted-scrollbar::-webkit-scrollbar {
   width: 0.45rem;
+  height: 0.45rem;
 }
 
 .muted-scrollbar::-webkit-scrollbar-thumb {
@@ -128,9 +130,40 @@ body::before {
   background: rgba(16, 37, 66, 0.35);
 }
 
+.muted-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .muted-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(16, 37, 66, 0.22) transparent;
+}
+
+/* === TABLE UTILITIES === */
+.table-responsive {
+  overflow-x: auto;
+}
+
+.table-cell-header-sortable:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  transition: background-color 0.15s ease;
+}
+
+.table-row-striped:nth-child(odd) {
+  background-color: rgba(148, 163, 184, 0.06);
+}
+
+.table-row-glass {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+  background-color: rgba(255, 255, 255, 0.45);
+}
+
+.table-row-glass:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.35);
+}
+
+.table-row-glass:last-child {
+  border-bottom: none;
 }
 
 /* Plugins v4 opcionales */

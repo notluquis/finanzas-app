@@ -4,7 +4,6 @@ import { useSettings } from "./context/SettingsContext";
 import CollapsibleNavSection from "./components/CollapsibleNavSection";
 import Clock from "./components/Clock";
 import ConnectionIndicator from "./components/ConnectionIndicator";
-import DevHelpPopover from "./components/DevHelpPopover";
 
 type NavItem = {
   to: string;
@@ -163,7 +162,6 @@ export default function App() {
           <Clock />
         </footer>
       </div>
-      <DevHelpPopover />
     </div>
   );
 }

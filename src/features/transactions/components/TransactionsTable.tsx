@@ -91,20 +91,21 @@ export function TransactionsTable({
       </div>
 
       <div className="glass-card glass-underlay-gradient overflow-hidden">
-        <table className="min-w-full text-sm text-slate-600">
-          <thead className="bg-white/55 text-[var(--brand-primary)] backdrop-blur-md">
-            <tr>
-              {visibleColumns.map((column) => (
-                <th 
-                  key={column.key} 
-                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer hover:bg-white/70"
-                  {...table.getSortProps(column.key)}
-                >
-                  {column.label} {table.getSortIcon(column.key)}
-                </th>
-              ))}
-            </tr>
-          </thead>
+        <div className="overflow-x-auto muted-scrollbar">
+          <table className="min-w-full text-sm text-slate-600">
+            <thead className="bg-white/55 text-[var(--brand-primary)] backdrop-blur-md">
+              <tr>
+                {visibleColumns.map((column) => (
+                  <th 
+                    key={column.key} 
+                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer hover:bg-white/70 whitespace-nowrap"
+                    {...table.getSortProps(column.key)}
+                  >
+                    {column.label} {table.getSortIcon(column.key)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
           <tbody>
             {paginatedRows.map((row) => (
               <tr
@@ -134,6 +135,7 @@ export function TransactionsTable({
             )}
           </tbody>
         </table>
+        </div>
         
         {/* Pagination */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/40 bg-white/45 px-4 py-3 text-xs text-slate-600">

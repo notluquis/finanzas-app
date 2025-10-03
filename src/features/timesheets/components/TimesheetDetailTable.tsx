@@ -87,13 +87,13 @@ export default function TimesheetDetailTable({
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto muted-scrollbar">
         <table className="min-w-full text-sm">
           <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
             <tr>
-              <th className="px-3 py-2 text-left font-semibold">Fecha</th>
-              <th className="px-3 py-2 text-left font-semibold">Horas (HH:MM)</th>
-              <th className="px-3 py-2 text-left font-semibold">Horas extra (HH:MM)</th>
+              <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Fecha</th>
+              <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Horas (HH:MM)</th>
+              <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Horas extra (HH:MM)</th>
               <th className="px-3 py-2 text-left font-semibold">Horas pagadas adicional (HH:MM)</th>
               <th className="px-3 py-2 text-left font-semibold">Comentario</th>
               <th className="px-3 py-2 text-left font-semibold">Estado</th>

@@ -28,14 +28,15 @@ function statusBadge(status: LoanSchedule["status"], dueDate: string) {
 export function LoanScheduleTable({ schedules, onRegisterPayment, onUnlinkPayment, canManage }: LoanScheduleTableProps) {
   return (
     <div className="glass-card glass-underlay-gradient overflow-hidden">
-      <table className="min-w-full text-sm text-slate-600">
-        <thead className="bg-white/60 text-[var(--brand-primary)]">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Cuota</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Vencimiento</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Monto</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Estado</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Pago</th>
+      <div className="overflow-x-auto muted-scrollbar">
+        <table className="min-w-full text-sm text-slate-600">
+          <thead className="bg-white/60 text-[var(--brand-primary)]">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Cuota</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Vencimiento</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Monto</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Estado</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap">Pago</th>
             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Transacción</th>
             {canManage && <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Acciones</th>}
           </tr>
@@ -110,6 +111,7 @@ export function LoanScheduleTable({ schedules, onRegisterPayment, onUnlinkPaymen
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

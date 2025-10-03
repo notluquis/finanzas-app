@@ -83,16 +83,15 @@ app.get("/api/health", async (_req, res) => {
 // --- Production Frontend Serving ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const base = "/intranet";
 
 // Carpeta con el build del cliente (Vite)
 const clientDir = path.resolve(__dirname, "../client");
 
-// Archivos estáticos de la SPA bajo /intranet
-app.use(base, express.static(clientDir, { index: false }));
+// Archivos estáticos de la SPA en la raíz
+app.use(express.static(clientDir, { index: false }));
 
-// Cualquier ruta de la SPA responde index.html para que React Router se encargue
-app.get(/^\/intranet\/?.*$/, (_req, res) => {
+// Cualquier ruta que no sea /api responde index.html para que React Router se encargue
+app.get(/^(?!\/api).*$/, (_req, res) => {
   res.sendFile(path.join(clientDir, "index.html"));
 });
 // --- End Production Frontend Serving ---

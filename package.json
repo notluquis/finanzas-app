@@ -6,14 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:client": "vite build",
+    "build:server": "tsc -p tsconfig.server.json && npm run copy:sql",
+    "copy:sql": "cp -r server/sql dist/server/",
     "preview": "vite preview",
     "server": "tsx watch --tsconfig tsconfig.server.json server/index.ts",
     "predev:full": "node scripts/reset-dev.mjs",
     "dev:full": "concurrently \"npm:dev\" \"npm:server\"",
-    "build:server": "tsc -p tsconfig.server.json",
     "start": "node dist/server/index.js",
-    "start:server": "node dist/server/index.js",
-    "check:builds": "npm run build:server && npm run build"
+    "build:prod": "rm -rf dist && npm run build:server && npm run build:client",
+    "deploy": "npm run build:prod",
+    "prod": "npm run build:prod && npm start"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

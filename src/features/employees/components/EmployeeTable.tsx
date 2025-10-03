@@ -121,33 +121,34 @@ export default function EmployeeTable({
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-[var(--brand-primary)]/15 bg-white shadow-sm">
-      <table className="min-w-full text-sm">
-        <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
-          <tr>
-            {table.isColumnVisible("name") && (
-              <th 
-                className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20"
-                {...table.getSortProps("name")}
-              >
-                Nombre {table.getSortIcon("name")}
-              </th>
-            )}
-            {table.isColumnVisible("role") && (
-              <th 
-                className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20"
-                {...table.getSortProps("role")}
-              >
-                Cargo {table.getSortIcon("role")}
-              </th>
-            )}
-            {table.isColumnVisible("email") && (
-              <th 
-                className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20"
-                {...table.getSortProps("email")}
-              >
-                Correo {table.getSortIcon("email")}
-              </th>
-            )}
+        <div className="overflow-x-auto muted-scrollbar">
+          <table className="min-w-full text-sm">
+            <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+              <tr>
+                {table.isColumnVisible("name") && (
+                  <th 
+                    className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20 whitespace-nowrap"
+                    {...table.getSortProps("name")}
+                  >
+                    Nombre {table.getSortIcon("name")}
+                  </th>
+                )}
+                {table.isColumnVisible("role") && (
+                  <th 
+                    className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20 whitespace-nowrap"
+                    {...table.getSortProps("role")}
+                  >
+                    Cargo {table.getSortIcon("role")}
+                  </th>
+                )}
+                {table.isColumnVisible("email") && (
+                  <th 
+                    className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20 whitespace-nowrap"
+                    {...table.getSortProps("email")}
+                  >
+                    Correo {table.getSortIcon("email")}
+                  </th>
+                )}
             {table.isColumnVisible("hourlyRate") && (
               <th 
                 className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20"
@@ -245,11 +246,12 @@ export default function EmployeeTable({
           )}
         </tbody>
       </table>
-      {!activeEmployees.length && !loading && (
-        <Alert variant="error">
-          Registra a tu primer trabajador para habilitar la captura de horas.
-        </Alert>
-      )}
+        </div>
+        {!activeEmployees.length && !loading && (
+          <Alert variant="error">
+            Registra a tu primer trabajador para habilitar la captura de horas.
+          </Alert>
+        )}
       </div>
     </div>
   );

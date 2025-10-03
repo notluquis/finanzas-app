@@ -28,21 +28,22 @@ export default function TimesheetSummaryTable({
 }: TimesheetSummaryTableProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--brand-primary)]/15 bg-white shadow-sm">
-      <table className="min-w-full text-sm">
-        <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
-          <tr>
-            <th className="px-4 py-3 text-left font-semibold">Trabajador</th>
-            <th className="px-4 py-3 text-left font-semibold">Cargo</th>
-            <th className="px-4 py-3 text-left font-semibold">Horas</th>
-            <th className="px-4 py-3 text-left font-semibold">Horas extra</th>
-            <th className="px-4 py-3 text-left font-semibold">Tarifa</th>
-            <th className="px-4 py-3 text-left font-semibold">Extras (HH:MM)</th>
-            <th className="px-4 py-3 text-left font-semibold">Subtotal</th>
-            <th className="px-4 py-3 text-left font-semibold">Retención</th>
-            <th className="px-4 py-3 text-left font-semibold">Líquido</th>
-            <th className="px-4 py-3 text-left font-semibold">Fecha pago</th>
-          </tr>
-        </thead>
+      <div className="overflow-x-auto muted-scrollbar">
+        <table className="min-w-full text-sm">
+          <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Trabajador</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Cargo</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Horas</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Horas extra</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Tarifa</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Extras (HH:MM)</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Subtotal</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Retención</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Líquido</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Fecha pago</th>
+            </tr>
+          </thead>
         <tbody>
           {loading && (
             <tr>
@@ -98,6 +99,7 @@ export default function TimesheetSummaryTable({
           </tfoot>
         )}
       </table>
+      </div>
     </div>
   );
 }

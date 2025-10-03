@@ -17,16 +17,17 @@ export default function InventoryTable({
 }: InventoryTableProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <table className="min-w-full text-sm">
-        <thead className="bg-slate-50 text-slate-700">
-          <tr>
-            <th className="px-4 py-3 text-left font-semibold">Nombre</th>
-            <th className="px-4 py-3 text-left font-semibold">Categoría</th>
-            <th className="px-4 py-3 text-left font-semibold">Descripción</th>
-            <th className="px-4 py-3 text-left font-semibold">Stock Actual</th>
-            <th className="px-4 py-3 text-right font-semibold">Acciones</th>
-          </tr>
-        </thead>
+      <div className="overflow-x-auto muted-scrollbar">
+        <table className="min-w-full text-sm">
+          <thead className="bg-slate-50 text-slate-700">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Nombre</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Categoría</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Descripción</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Stock Actual</th>
+              <th className="px-4 py-3 text-right font-semibold whitespace-nowrap">Acciones</th>
+            </tr>
+          </thead>
         <tbody>
           {items.map((item) => (
             <tr key={item.id} className="odd:bg-slate-50/60">
@@ -67,6 +68,7 @@ export default function InventoryTable({
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
