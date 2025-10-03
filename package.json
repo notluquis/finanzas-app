@@ -10,13 +10,17 @@
     "build:server": "tsc -p tsconfig.server.json && npm run copy:sql",
     "copy:sql": "cp -r server/sql dist/server/",
     "preview": "vite preview",
-    "server": "tsx watch --tsconfig tsconfig.server.json server/index.ts",
+    "server": "npx @dotenvx/dotenvx run -- tsx watch --tsconfig tsconfig.server.json server/index.ts",
     "predev:full": "node scripts/reset-dev.mjs",
     "dev:full": "concurrently \"npm:dev\" \"npm:server\"",
     "start": "node dist/server/index.js",
     "build:prod": "rm -rf dist && npm run build:server && npm run build:client",
     "deploy": "npm run build:prod",
-    "prod": "npm run build:prod && npm start"
+    "prod": "npm run build:prod && npm start",
+    "env:encrypt": "npx @dotenvx/dotenvx encrypt",
+    "env:decrypt": "npx @dotenvx/dotenvx decrypt",
+    "prod:secure": "npx @dotenvx/dotenvx run -- npm start",
+    "security:check": "npm audit && npx @dotenvx/dotenvx run --quiet -- echo '✅ Variables de entorno cargadas de forma segura'"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -39,6 +43,7 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
+    "@dotenvx/dotenvx": "^1.51.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",

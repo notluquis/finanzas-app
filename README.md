@@ -1,14 +1,42 @@
-# Finanzas App
+# 🏦 Finanzas App
 
-React + Vite + TS + **Tailwind v4**. Incluye servidor Express para subir reportes de Mercado Pago a MySQL (HostGator), autenticación con roles y un panel moderno totalmente tematizable con los colores corporativos de Bioalergia.
+React + Vite + TypeScript + **Tailwind v4**. Sistema completo de gestión financiera para Bioalergia con Express + MySQL backend, autenticación con roles y panel moderno tematizable.
 
-## Scripts
-- `npm run dev` → desarrollo
-- `npm run dev:full` → front + backend en paralelo (Vite + Express)
-- `npm run build` → producción
-- `npm run preview` → previsualización
+## 🚀 Scripts de Desarrollo
 
-## Notas
+```bash
+# Desarrollo
+npm run dev:full      # Frontend + Backend en paralelo (recomendado)
+npm run dev           # Solo frontend (Vite)
+npm run server        # Solo backend (Express)
+
+# Producción
+npm run prod          # Build completo + start
+npm run deploy        # Solo build
+npm start             # Solo start (requiere build previo)
+
+# Seguridad
+npm run security:check    # Auditoría de seguridad
+npm run env:encrypt      # Encriptar variables para producción
+npm run prod:secure      # Producción con encriptación
+```
+
+## 🔐 Seguridad y Variables de Entorno
+
+⚠️ **Importante**: Este proyecto implementa las mejores prácticas de seguridad con **dotenvx**.
+
+### Configuración Inicial
+1. Copia `.env.example` a `.env`
+2. Completa con tus valores reales
+3. **Nunca** subas `.env` al repositorio
+
+### Medidas de Seguridad
+- ✅ Hook de pre-commit previene subida accidental de secrets
+- ✅ Variables encriptadas para producción con dotenvx
+- ✅ Auditoría automática de dependencias
+- ✅ Documentación completa en `docs/SECURITY.md`
+
+## 🏗️ Arquitectura
 - Tailwind v4 se integra con `@tailwindcss/vite`. No se requiere `tailwind.config` ni `postcss.config` para el caso base.
 - Para Excel se usa `exceljs`. Prefiere CSV cuando sea posible con `papaparse`.
 - Los reportes de Mercado Pago se manejan en `src/mp/reports.ts`. El parser autodetecta separadores `,`, `;` o `|`; si necesitas casos más complejos, considera integrar Papa Parse.

@@ -99,7 +99,7 @@ export default function App() {
   const capitalizedName = displayName.split(" ")[0].charAt(0).toUpperCase() + displayName.split(" ")[0].slice(1).toLowerCase();
 
   return (
-    <div className="relative mx-auto flex min-h-screen max-w-[1440px] gap-6 px-4 py-6 text-slate-900 sm:px-6 lg:px-10">
+    <div className="layout-container relative mx-auto flex min-h-screen max-w-[1440px] gap-6 px-4 py-6 text-slate-900 sm:px-6 lg:px-10">
       <aside className="glass-panel glass-underlay-gradient flex w-64 flex-shrink-0 flex-col overflow-hidden rounded-3xl p-5 text-sm text-slate-700 shadow-xl">
         <div className="flex h-16 items-center justify-center rounded-2xl border border-white/40 bg-white/60 px-3 shadow-inner">
           <img src={settings.logoUrl} alt="Logo" className="h-10" />
@@ -127,7 +127,7 @@ export default function App() {
         </nav>
       </aside>
 
-      <div className="flex flex-1 flex-col gap-6">
+      <div className="layout-container flex flex-1 flex-col gap-6 min-w-0">{/* min-w-0 permite que se encoja */}
         <header className="glass-panel glass-panel--tinted flex items-center justify-between rounded-3xl px-6 py-4">
           <h1 className="text-xl font-semibold text-slate-800 drop-shadow-sm">{title}</h1>
           <div className="flex items-center gap-4">
@@ -151,9 +151,11 @@ export default function App() {
           </div>
         </header>
 
-        <main className="glass-panel flex-1 overflow-hidden rounded-3xl">
-          <div className="muted-scrollbar h-full overflow-y-auto px-6 py-6">
-            <Outlet />
+        <main className="glass-panel flex-1 rounded-3xl">
+          <div className="h-full px-6 py-6">
+            <div className="muted-scrollbar h-full overflow-auto">
+              <Outlet />
+            </div>
           </div>
         </main>
 

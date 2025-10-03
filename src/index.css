@@ -115,6 +115,15 @@ body::before {
   opacity: 0.65;
 }
 
+/* === LAYOUT UTILITIES === */
+.layout-container {
+  min-width: 0; /* Permite que los contenedores flexibles se encojan */
+}
+
+.layout-main {
+  min-height: 0; /* Permite que el main se comporte correctamente en flex */
+}
+
 /* === SCROLLBAR UTILITIES === */
 .muted-scrollbar::-webkit-scrollbar {
   width: 0.45rem;
@@ -142,6 +151,13 @@ body::before {
 /* === TABLE UTILITIES === */
 .table-responsive {
   overflow-x: auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.table-container {
+  min-width: 100%;
+  width: max-content;
 }
 
 .table-cell-header-sortable:hover {

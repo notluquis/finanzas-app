@@ -1,7 +1,8 @@
-import dotenv from "dotenv";
+import { config } from "dotenv";
 import type { CookieOptions } from "express";
 
-dotenv.config();
+// Cargar variables de entorno
+config({ debug: false });
 
 export const isProduction = process.env.NODE_ENV === "production";
 

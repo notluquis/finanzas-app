@@ -62,7 +62,6 @@ export function ConnectionIndicator() {
   useEffect(() => {
     let cancelled = false;
     let intervalId: number | null = null;
-    let timeoutId: number | null = null;
 
     async function fetchHealth() {
       const controller = new AbortController();
@@ -89,9 +88,7 @@ export function ConnectionIndicator() {
         // Marcar que hemos conectado al menos una vez
         if (!hasConnectedOnce) {
           setHasConnectedOnce(true);
-          // Mostrar notificación de éxito brevemente
-          setOpen(true);
-          timeoutId = window.setTimeout(() => setOpen(false), 3000);
+          console.log("\u2705 Servidor conectado exitosamente");
         }
         
         const details: string[] = [];
@@ -141,7 +138,7 @@ export function ConnectionIndicator() {
         
         setState(prevState => {
           const newRetryCount = prevState.retryCount + 1;
-          const isStarting = !hasConnectedOnce && newRetryCount < 6; // Primeros 30 segundos
+          const isStarting = !hasConnectedOnce && newRetryCount < 4; // Reducido a 20 segundos
           
           const detailMessage =
             error instanceof Error
@@ -155,14 +152,14 @@ export function ConnectionIndicator() {
             fetchedAt,
             message: isStarting ? STATUS_COPY.starting.description : STATUS_COPY.offline.description,
             details: isStarting 
-              ? [`Intento ${newRetryCount}/6: ${detailMessage}`]
+              ? [`Intento ${newRetryCount}/4: ${detailMessage}`]
               : [detailMessage],
             retryCount: newRetryCount,
           };
         });
         
-        // Mostrar automáticamente el estado si está arrancando
-        if (!hasConnectedOnce) {
+        // Solo mostrar si es un error persistente después de varios intentos
+        if (!hasConnectedOnce && state.retryCount > 2) {
           setOpen(true);
         }
       } finally {
@@ -172,14 +169,13 @@ export function ConnectionIndicator() {
     }
 
     fetchHealth();
-    intervalId = window.setInterval(fetchHealth, 5000); // Más frecuente durante el inicio
+    intervalId = window.setInterval(fetchHealth, 5000);
 
     return () => {
       cancelled = true;
       if (intervalId) window.clearInterval(intervalId);
-      if (timeoutId) window.clearTimeout(timeoutId);
     };
-  }, [hasConnectedOnce]);
+  }, [hasConnectedOnce, state.retryCount]);
 
   // Auto-cerrar después de un tiempo si no está online
   useEffect(() => {
@@ -205,8 +201,8 @@ export function ConnectionIndicator() {
         <span className="hidden sm:inline">{statusCopy.label}</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-10 z-30 w-72 text-sm">
-          <div className="glass-card glass-underlay-gradient space-y-3 rounded-2xl p-4 shadow-xl">
+        <div className="absolute right-0 top-full mt-2 z-50 w-72 text-sm">
+          <div className="glass-card glass-underlay-gradient space-y-3 rounded-2xl p-4 shadow-xl border border-white/20">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-slate-700">{statusCopy.label}</p>
@@ -226,7 +222,7 @@ export function ConnectionIndicator() {
             )}
             {state.level === "starting" && (
               <div className="rounded-lg bg-blue-50 p-2 text-xs text-blue-700">
-                💡 El servidor puede tardar 10-30 segundos en inicializar completamente.
+                💡 El servidor puede tardar 10-20 segundos en inicializar.
               </div>
             )}
             <div className="flex justify-between text-[11px] uppercase tracking-wide text-slate-400">
