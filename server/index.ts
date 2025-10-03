@@ -108,10 +108,17 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 ensureSchema()
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`Servidor API escuchando en http://localhost:${PORT}`);
+      console.log('\n🚀 ===== SERVIDOR FINANZAS APP =====');
+      console.log(`📡 API: http://localhost:${PORT}/api/health`);
+      console.log(`🌐 Frontend: http://localhost:${PORT}/`);
+      console.log(`⚡ Estado: Servidor iniciado y listo`);
+      console.log('=====================================\n');
     });
   })
   .catch((error) => {
-    console.error("No se ha podido inicializar la base de datos:", error);
+    console.error('\n❌ ===== ERROR DE INICIALIZACIÓN =====');
+    console.error("💾 No se pudo inicializar la base de datos:");
+    console.error(error);
+    console.error('=====================================\n');
     process.exit(1);
   });
