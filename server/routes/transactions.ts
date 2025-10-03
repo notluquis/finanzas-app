@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Response as ExpressResponse } from "express";
 import multer from "multer";
 import Papa from "papaparse";
 import type { ParseError } from "papaparse";
@@ -7,7 +7,8 @@ import {
   asyncHandler,
   authenticate,
   requireRole,
-} from "../lib/http.js";
+} from "../lib/index.js";
+import { SQLBuilder } from "../lib/database.js";
 import { logEvent, logWarn, requestContext } from "../lib/logger.js";
 import {
   DEFAULT_SETTINGS,
@@ -244,6 +245,32 @@ export function registerTransactionRoutes(app: express.Express) {
             ? `${payout.bankAccountHolder}${payout.bankName ? ` · ${payout.bankName}` : ""}`
             : originalDestination;
 
+        const loanSchedule =
+          row.loan_schedule_id != null
+            ? {
+                id: Number(row.loan_schedule_id),
+                installmentNumber: Number(row.loan_installment_number ?? 0),
+                status: (row.loan_schedule_status as string) ?? "PENDING",
+                dueDate: row.loan_due_date ? String(row.loan_due_date).slice(0, 10) : null,
+                expectedAmount: row.loan_expected_amount != null ? Number(row.loan_expected_amount) : null,
+                loanTitle: row.loan_title != null ? String(row.loan_title) : null,
+                loanPublicId: row.loan_public_id != null ? String(row.loan_public_id) : null,
+              }
+            : null;
+
+        const serviceSchedule =
+          row.service_schedule_id != null
+            ? {
+                id: Number(row.service_schedule_id),
+                status: (row.service_schedule_status as string) ?? "PENDING",
+                dueDate: row.service_due_date ? String(row.service_due_date).slice(0, 10) : null,
+                expectedAmount: row.service_expected_amount != null ? Number(row.service_expected_amount) : null,
+                serviceName: row.service_name != null ? String(row.service_name) : null,
+                servicePublicId: row.service_public_id != null ? String(row.service_public_id) : null,
+                periodStart: row.service_period_start ? String(row.service_period_start).slice(0, 10) : null,
+              }
+            : null;
+
         return {
           id: Number(row.id),
           timestamp: normalizeTimestamp(row.timestamp as string | Date, row.timestamp_raw as string | null),
@@ -253,9 +280,11 @@ export function registerTransactionRoutes(app: express.Express) {
           destination,
           source_id: (row.source_id as string) ?? null,
           direction: row.direction as "IN" | "OUT" | "NEUTRO",
-        amount: row.amount != null ? Number(row.amount) : null,
-        created_at: row.created_at as string,
+          amount: row.amount != null ? Number(row.amount) : null,
+          created_at: row.created_at as string,
           payout,
+          loanSchedule,
+          serviceSchedule,
         };
       });
 

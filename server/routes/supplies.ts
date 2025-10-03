@@ -1,6 +1,7 @@
 import express, { Router } from "express";
 import { z } from "zod";
 import { getPool } from "../db.js";
+import { SQLBuilder } from "../lib/database.js";
 import { AuthenticatedRequest } from "../types.js";
 import { authenticate, asyncHandler, requireRole } from "../lib/http.js";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
@@ -57,15 +58,18 @@ router.get(
     const db = getPool();
     const { role } = req.auth!;
 
-    let query = `SELECT sr.*, u.email as user_email FROM supply_requests sr JOIN users u ON sr.user_id = u.id`;
+    const builder = new SQLBuilder("supply_requests sr")
+      .select("sr.*", "u.email as user_email")
+      .join("users u", "sr.user_id = u.id");
 
     if (role !== "ADMIN" && role !== "GOD") {
-      query += ` WHERE sr.status IN ('pending', 'ordered', 'in_transit')`;
+      builder.where("sr.status IN ('pending', 'ordered', 'in_transit')");
     }
 
-    query += ` ORDER BY sr.created_at DESC`;
+    builder.orderBy("sr.created_at DESC");
 
-    const [rows] = await db.execute<RowDataPacket[]>(query);
+    const { sql: query, params } = builder.build();
+    const [rows] = await db.execute<RowDataPacket[]>(query, params);
 
     res.json(rows);
   })

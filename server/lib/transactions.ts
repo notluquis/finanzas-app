@@ -57,6 +57,20 @@ export function buildTransactionsQuery(options: TransactionsQueryOptions) {
     "mw.bank_branch AS payout_bank_branch",
     "mw.identification_type AS payout_identification_type",
     "mw.identification_number AS payout_identification_number",
+    "ls.id AS loan_schedule_id",
+    "ls.installment_number AS loan_installment_number",
+    "ls.status AS loan_schedule_status",
+    "ls.due_date AS loan_due_date",
+    "ls.expected_amount AS loan_expected_amount",
+    "l.public_id AS loan_public_id",
+    "l.title AS loan_title",
+    "ssvc.id AS service_schedule_id",
+    "ssvc.status AS service_schedule_status",
+    "ssvc.due_date AS service_due_date",
+    "ssvc.expected_amount AS service_expected_amount",
+    "ssvc.period_start AS service_period_start",
+    "svc.public_id AS service_public_id",
+    "svc.name AS service_name",
   ];
 
   const conditions: string[] = [];
@@ -121,7 +135,11 @@ export function buildTransactionsQuery(options: TransactionsQueryOptions) {
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-  const joinClause = "LEFT JOIN mp_withdrawals mw ON t.source_id = mw.withdraw_id";
+  const joinClause = `LEFT JOIN mp_withdrawals mw ON t.source_id = mw.withdraw_id
+    LEFT JOIN loan_schedules ls ON ls.transaction_id = t.id
+    LEFT JOIN loans l ON l.id = ls.loan_id
+    LEFT JOIN service_schedules ssvc ON ssvc.transaction_id = t.id
+    LEFT JOIN services svc ON svc.id = ssvc.service_id`;
 
   const countSql = `SELECT COUNT(*) AS total
     FROM mp_transactions t

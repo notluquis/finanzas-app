@@ -1,3 +1,4 @@
+import { apiClient } from "../../lib/apiClient";
 import type {
   Counterpart,
   CounterpartAccount,
@@ -8,26 +9,13 @@ import type {
   CounterpartCategory,
 } from "./types";
 
-const JSON_HEADERS = { "Content-Type": "application/json" };
-
-async function handleResponse<T>(res: Response) {
-  const data = await res.json();
-  if (!res.ok || data.status !== "ok") {
-    throw new Error(data.message || "No se pudo completar la operación");
-  }
-  return data as { status: "ok" } & T;
-}
-
 export async function fetchCounterparts() {
-  const res = await fetch("/api/counterparts", { credentials: "include" });
-  const data = await handleResponse<{ counterparts: Counterpart[] }>(res);
+  const data = await apiClient.get<{ counterparts: Counterpart[] }>("/api/counterparts");
   return data.counterparts;
 }
 
 export async function fetchCounterpart(id: number) {
-  const res = await fetch(`/api/counterparts/${id}`, { credentials: "include" });
-  const data = await handleResponse<{ counterpart: Counterpart; accounts: CounterpartAccount[] }>(res);
-  return data;
+  return await apiClient.get<{ counterpart: Counterpart; accounts: CounterpartAccount[] }>(`/api/counterparts/${id}`);
 }
 
 export async function createCounterpart(payload: {
@@ -39,14 +27,7 @@ export async function createCounterpart(payload: {
   employeeEmail?: string | null;
   notes?: string | null;
 }) {
-  const res = await fetch("/api/counterparts", {
-    method: "POST",
-    credentials: "include",
-    headers: JSON_HEADERS,
-    body: JSON.stringify(payload),
-  });
-  const data = await handleResponse<{ counterpart: Counterpart; accounts: CounterpartAccount[] }>(res);
-  return data;
+  return await apiClient.post<{ counterpart: Counterpart; accounts: CounterpartAccount[] }>("/api/counterparts", payload);
 }
 
 export async function updateCounterpart(id: number, payload: Partial<{
@@ -58,14 +39,7 @@ export async function updateCounterpart(id: number, payload: Partial<{
   employeeEmail: string | null;
   notes: string | null;
 }>) {
-  const res = await fetch(`/api/counterparts/${id}`, {
-    method: "PUT",
-    credentials: "include",
-    headers: JSON_HEADERS,
-    body: JSON.stringify(payload),
-  });
-  const data = await handleResponse<{ counterpart: Counterpart; accounts: CounterpartAccount[] }>(res);
-  return data;
+  return await apiClient.put<{ counterpart: Counterpart; accounts: CounterpartAccount[] }>(`/api/counterparts/${id}`, payload);
 }
 
 export async function addCounterpartAccount(
@@ -82,13 +56,7 @@ export async function addCounterpartAccount(
     } | null;
   }
 ) {
-  const res = await fetch(`/api/counterparts/${counterpartId}/accounts`, {
-    method: "POST",
-    credentials: "include",
-    headers: JSON_HEADERS,
-    body: JSON.stringify(payload),
-  });
-  const data = await handleResponse<{ accounts: CounterpartAccount[] }>(res);
+  const data = await apiClient.post<{ accounts: CounterpartAccount[] }>(`/api/counterparts/${counterpartId}/accounts`, payload);
   return data.accounts;
 }
 
@@ -101,23 +69,14 @@ export async function updateCounterpartAccount(
     concept: string | null;
   }>
 ) {
-  const res = await fetch(`/api/counterparts/accounts/${accountId}`, {
-    method: "PUT",
-    credentials: "include",
-    headers: JSON_HEADERS,
-    body: JSON.stringify(payload),
-  });
-  await handleResponse(res);
+  await apiClient.put(`/api/counterparts/accounts/${accountId}`, payload);
 }
 
 export async function fetchAccountSuggestions(query: string, limit = 10) {
   const params = new URLSearchParams();
   if (query) params.set("q", query);
   params.set("limit", String(limit));
-  const res = await fetch(`/api/counterparts/suggestions?${params.toString()}`, {
-    credentials: "include",
-  });
-  const data = await handleResponse<{ suggestions: CounterpartAccountSuggestion[] }>(res);
+  const data = await apiClient.get<{ suggestions: CounterpartAccountSuggestion[] }>(`/api/counterparts/suggestions?${params.toString()}`);
   return data.suggestions;
 }
 
@@ -128,20 +87,11 @@ export async function fetchCounterpartSummary(
   const search = new URLSearchParams();
   if (params?.from) search.set("from", params.from);
   if (params?.to) search.set("to", params.to);
-  const res = await fetch(`/api/counterparts/${counterpartId}/summary${search.size ? `?${search.toString()}` : ""}`, {
-    credentials: "include",
-  });
-  const data = await handleResponse<{ summary: CounterpartSummary }>(res);
+  const data = await apiClient.get<{ summary: CounterpartSummary }>(`/api/counterparts/${counterpartId}/summary${search.size ? `?${search.toString()}` : ""}`);
   return data.summary;
 }
 
 export async function attachCounterpartRut(counterpartId: number, rut: string) {
-  const res = await fetch(`/api/counterparts/${counterpartId}/attach-rut`, {
-    method: "POST",
-    credentials: "include",
-    headers: JSON_HEADERS,
-    body: JSON.stringify({ rut }),
-  });
-  const data = await handleResponse<{ accounts: CounterpartAccount[] }>(res);
+  const data = await apiClient.post<{ accounts: CounterpartAccount[] }>(`/api/counterparts/${counterpartId}/attach-rut`, { rut });
   return data.accounts;
 }

@@ -16,6 +16,8 @@ import { registerCounterpartRoutes } from "./routes/counterparts.js";
 import suppliesRouter from "./routes/supplies.js";
 import { registerInventoryRoutes } from "./routes/inventory.js";
 import { registerRoleRoutes } from "./routes/roles.js";
+import { registerLoanRoutes } from "./routes/loans.js";
+import { registerServiceRoutes } from "./routes/services.js";
 
 const app = express();
 
@@ -42,6 +44,8 @@ registerTimesheetRoutes(app);
 registerCounterpartRoutes(app);
 registerInventoryRoutes(app);
 registerRoleRoutes(app);
+registerLoanRoutes(app);
+registerServiceRoutes(app);
 app.use("/api/supplies", suppliesRouter);
 
 app.get("/api/health", async (_req, res) => {

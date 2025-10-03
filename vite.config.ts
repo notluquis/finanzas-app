@@ -6,7 +6,22 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: "/intranet/",
-  build: { outDir: "dist/client" },
+  build: { 
+    outDir: "dist/client",
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['lucide-react'],
+          'data-vendor': ['dayjs', 'zod', 'papaparse'],
+          'pdf-vendor': ['jspdf', 'html2canvas'],
+          'excel-vendor': ['exceljs']
+        }
+      }
+    }
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

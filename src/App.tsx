@@ -32,6 +32,8 @@ const NAV_SECTIONS: NavSection[] = [
       { to: "/transactions/balances", label: "Saldos diarios", roles: ["GOD", "ADMIN", "ANALYST", "VIEWER"] },
       { to: "/counterparts", label: "Contrapartes", roles: ["GOD", "ADMIN", "ANALYST", "VIEWER"] },
       { to: "/transactions/participants", label: "Participantes", roles: ["GOD", "ADMIN", "ANALYST", "VIEWER"] },
+      { to: "/loans", label: "Préstamos", roles: ["GOD", "ADMIN", "ANALYST"] },
+      { to: "/services", label: "Servicios", roles: ["GOD", "ADMIN", "ANALYST"] },
     ],
   },
   {
@@ -47,7 +49,10 @@ const NAV_SECTIONS: NavSection[] = [
     title: "Administración",
     items: [
       { to: "/upload", label: "Subir CSV", roles: ["GOD", "ADMIN", "ANALYST"] },
-      { to: "/settings", label: "Configuración", roles: ["GOD", "ADMIN"] }
+      { to: "/settings/general", label: "Config. general", roles: ["GOD", "ADMIN"] },
+      { to: "/settings/accesos", label: "Accesos y conexiones", roles: ["GOD", "ADMIN"] },
+      { to: "/settings/inventario", label: "Config. inventario", roles: ["GOD", "ADMIN"] },
+      { to: "/settings/roles", label: "Roles y permisos", roles: ["GOD", "ADMIN"] },
     ],
   },
 ];
@@ -62,9 +67,15 @@ const TITLES: Record<string, string> = {
   "/transactions/balances": "Saldos diarios",
   "/employees": "Trabajadores",
   "/supplies": "Solicitud de Insumos",
+  "/loans": "Préstamos y créditos",
+  "/services": "Servicios recurrentes",
   "/data": "Movimientos registrados",
   "/stats": "Estadísticas",
   "/settings": "Configuración",
+  "/settings/general": "Identidad y marca",
+  "/settings/accesos": "Accesos y conexiones",
+  "/settings/inventario": "Parámetros de inventario",
+  "/settings/roles": "Roles y permisos",
   "/inventory": "Gestión de Inventario",
 };
 

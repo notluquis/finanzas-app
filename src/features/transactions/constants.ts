@@ -9,6 +9,7 @@ export const COLUMN_DEFS = [
   { key: "destination", label: "Hacia" },
   { key: "direction", label: "Tipo" },
   { key: "amount", label: "Monto" },
+  { key: "related", label: "Relacionado" },
   { key: "runningBalance", label: "Saldo cuenta" },
 ] as const;
 

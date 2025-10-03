@@ -1,29 +1,56 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import "./index.css";
 import App from "./App";
-import Home from "./pages/Home";
-import Upload from "./pages/Upload";
-import TransactionsMovements from "./pages/TransactionsMovements";
-import EmployeesPage from "./pages/Employees";
-import Settings from "./pages/Settings";
-import Login from "./pages/Login";
 import RequireAuth from "./components/RequireAuth";
 import { AuthProvider } from "./context/AuthContext";
 import { SettingsProvider } from "./context/SettingsContext";
-import Stats from "./pages/Stats";
-import DailyBalances from "./pages/DailyBalances";
-import TimesheetsPage from "./pages/Timesheets";
-import ParticipantInsightsPage from "./pages/ParticipantInsights";
-import CounterpartsPage from "./pages/Counterparts";
-import SuppliesPage from "./pages/Supplies";
-import InventoryPage from "./pages/Inventory";
+
+// Lazy loading de componentes principales
+const Home = lazy(() => import("./pages/Home"));
+const Login = lazy(() => import("./pages/Login"));
+const Settings = lazy(() => import("./pages/Settings"));
+
+// Lazy loading por features
+const TransactionsMovements = lazy(() => import("./pages/TransactionsMovements"));
+const DailyBalances = lazy(() => import("./pages/DailyBalances"));
+const ParticipantInsightsPage = lazy(() => import("./pages/ParticipantInsights"));
+
+const Upload = lazy(() => import("./pages/Upload"));
+const Stats = lazy(() => import("./pages/Stats"));
+
+const EmployeesPage = lazy(() => import("./pages/Employees"));
+const TimesheetsPage = lazy(() => import("./pages/Timesheets"));
+
+const CounterpartsPage = lazy(() => import("./pages/Counterparts"));
+const LoansPage = lazy(() => import("./pages/Loans"));
+const ServicesPage = lazy(() => import("./pages/Services"));
+
+const SuppliesPage = lazy(() => import("./pages/Supplies"));
+const InventoryPage = lazy(() => import("./pages/Inventory"));
+
+// Settings pages
+const GeneralSettingsPage = lazy(() => import("./pages/settings/GeneralSettingsPage"));
+const AccessSettingsPage = lazy(() => import("./pages/settings/AccessSettingsPage"));
+const InventorySettingsPage = lazy(() => import("./pages/settings/InventorySettingsPage"));
+const RolesSettingsPage = lazy(() => import("./pages/settings/RolesSettingsPage"));
+
+// Componente de loading
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[200px]">
+    <div className="text-[var(--brand-primary)] font-medium">Cargando...</div>
+  </div>
+);
 
 const router = createBrowserRouter([
   {
     path: "/login",
-    element: <Login />,
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <Login />
+      </Suspense>
+    ),
   },
   {
     element: (
@@ -32,19 +59,154 @@ const router = createBrowserRouter([
       </RequireAuth>
     ),
     children: [
-      { path: "/", element: <Home /> },
-      { path: "/employees", element: <EmployeesPage /> },
-      { path: "/upload", element: <Upload /> },
-      { path: "/transactions/movements", element: <TransactionsMovements /> },
-      { path: "/transactions/balances", element: <DailyBalances /> },
-      { path: "/transactions/participants", element: <ParticipantInsightsPage /> },
-      { path: "/counterparts", element: <CounterpartsPage /> },
-      { path: "/timesheets", element: <TimesheetsPage /> },
-      { path: "/supplies", element: <SuppliesPage /> },
+      { 
+        path: "/", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <Home />
+          </Suspense>
+        )
+      },
+      { 
+        path: "/employees", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <EmployeesPage />
+          </Suspense>
+        )
+      },
+      { 
+        path: "/upload", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <Upload />
+          </Suspense>
+        )
+      },
+      { 
+        path: "/transactions/movements", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <TransactionsMovements />
+          </Suspense>
+        )
+      },
+      { 
+        path: "/transactions/balances", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <DailyBalances />
+          </Suspense>
+        )
+      },
+      { 
+        path: "/transactions/participants", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <ParticipantInsightsPage />
+          </Suspense>
+        )
+      },
+      { 
+        path: "/counterparts", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <CounterpartsPage />
+          </Suspense>
+        )
+      },
+      { 
+        path: "/loans", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <LoansPage />
+          </Suspense>
+        )
+      },
+      { 
+        path: "/services", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <ServicesPage />
+          </Suspense>
+        )
+      },
+      { 
+        path: "/timesheets", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <TimesheetsPage />
+          </Suspense>
+        )
+      },
+      { 
+        path: "/supplies", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <SuppliesPage />
+          </Suspense>
+        )
+      },
       { path: "/data", element: <Navigate to="/transactions/movements" replace /> },
-      { path: "/stats", element: <Stats /> },
-      { path: "/settings", element: <Settings /> },
-      { path: "/inventory", element: <InventoryPage /> },
+      { 
+        path: "/stats", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <Stats />
+          </Suspense>
+        )
+      },
+      {
+        path: "/settings",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <Settings />
+          </Suspense>
+        ),
+        children: [
+          { index: true, element: <Navigate to="general" replace /> },
+          { 
+            path: "general", 
+            element: (
+              <Suspense fallback={<PageLoader />}>
+                <GeneralSettingsPage />
+              </Suspense>
+            )
+          },
+          { 
+            path: "accesos", 
+            element: (
+              <Suspense fallback={<PageLoader />}>
+                <AccessSettingsPage />
+              </Suspense>
+            )
+          },
+          { 
+            path: "inventario", 
+            element: (
+              <Suspense fallback={<PageLoader />}>
+                <InventorySettingsPage />
+              </Suspense>
+            )
+          },
+          { 
+            path: "roles", 
+            element: (
+              <Suspense fallback={<PageLoader />}>
+                <RolesSettingsPage />
+              </Suspense>
+            )
+          },
+        ],
+      },
+      { 
+        path: "/inventory", 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <InventoryPage />
+          </Suspense>
+        )
+      },
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },

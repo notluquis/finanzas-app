@@ -285,15 +285,12 @@ export default function TransactionsMovements() {
             rows={ledger}
             loading={loading}
             hasAmounts={hasAmounts}
-            visibleColumns={visibleColumns}
-            page={page}
-            pageSize={pageSize}
             total={total}
-            onPageChange={(nextPage) => {
+            onPageChange={(nextPage: number) => {
               setPage(nextPage);
               refresh(filters, nextPage, pageSize);
             }}
-            onPageSizeChange={(nextPageSize) => {
+            onPageSizeChange={(nextPageSize: number) => {
               setPageSize(nextPageSize);
               setPage(1);
               refresh(filters, 1, nextPageSize);

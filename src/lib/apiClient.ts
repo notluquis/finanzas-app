@@ -13,9 +13,9 @@ const ApiResponseSchema = UploadSummarySchema.extend({
   message: z.string().optional(),
 });
 
-type UploadSummary = z.infer<typeof UploadSummarySchema>;
+export type UploadSummary = z.infer<typeof UploadSummarySchema>;
 
-type UploadResult = {
+export type UploadResult = {
   file: string;
   summary?: UploadSummary;
   error?: string;

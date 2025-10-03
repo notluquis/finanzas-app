@@ -1,90 +1,34 @@
-import { useState } from "react";
-import { uploadFiles } from "../../../lib/apiClient";
+import { useFileUpload } from "../../../hooks";
 import { fileHasWithdrawHeader } from "../../../lib/csvUtils";
 import Button from "../../../components/Button";
 import FileInput from "../../../components/FileInput";
 import Alert from "../../../components/Alert";
 import UploadResults from "../../../components/UploadResults";
 
-type UploadSummary = {
-  status: string;
-  inserted: number;
-  skipped?: number;
-  updated?: number;
-  total: number;
-};
-
-type UploadResult = {
-  file: string;
-  summary?: UploadSummary;
-  error?: string;
-};
-
-function useFileUpload(endpoint: string, logContext: string) {
-  const [files, setFiles] = useState<File[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<UploadResult[]>([]);
-
-  const handleUpload = async () => {
-    if (!files.length) {
-      setError("Selecciona uno o más archivos CSV antes de subirlos.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    setResults([]);
-
-    const uploadResults = await uploadFiles(files, endpoint, logContext);
-    setResults(uploadResults);
-    setLoading(false);
+// Validator para archivos de retiros
+async function validateWithdrawFile(file: File) {
+  const hasToken = await fileHasWithdrawHeader(file);
+  return {
+    missing: hasToken ? [] : ["withdraw_id"],
+    headersCount: hasToken ? 1 : 0,
   };
-
-  const reset = () => {
-    setFiles([]);
-    setError(null);
-    setResults([]);
-  };
-
-  return { files, setFiles, loading, error, results, handleUpload, reset };
 }
 
 export default function PayoutUploadForm() {
   const {
-    files: payoutFiles,
-    setFiles: setPayoutFiles,
-    loading: payoutLoading,
-    error: payoutError,
-    results: payoutResults,
-    handleUpload: handlePayoutUpload,
-    reset: resetPayouts,
-  } = useFileUpload("/api/transactions/withdrawals/upload", "[withdrawals]");
-
-  const handlePayoutFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(event.target.files ?? []);
-    resetPayouts();
-
-    if (!selected.length) {
-      setPayoutFiles([]);
-      return;
-    }
-
-    const analyses = await Promise.all(selected.map(async (file) => ({ file, hasToken: await fileHasWithdrawHeader(file) })));
-    const problematic = analyses.filter((item) => !item.hasToken);
-    if (problematic.length) {
-      const message = problematic.map(({ file }) => `${file.name}: no se encontró la columna withdraw_id`).join("\n");
-      const proceed = window.confirm(
-        `Advertencia: algunos archivos no parecen contener retiros válidos.\n\n${message}\n\n¿Deseas continuar igualmente?`
-      );
-      if (!proceed) {
-        setPayoutFiles([]);
-        event.target.value = "";
-        return;
-      }
-    }
-
-    setPayoutFiles(selected);
-  };
+    files,
+    loading,
+    error,
+    results,
+    handleUpload,
+    handleFileChange,
+  } = useFileUpload({
+    endpoint: "/api/transactions/withdrawals/upload",
+    logContext: "[withdrawals]",
+    validator: validateWithdrawFile,
+    multiple: true,
+    confirmOnValidationWarning: true,
+  });
 
   return (
     <div className="mt-8 space-y-3 border-t border-slate-200 pt-6">
@@ -97,23 +41,23 @@ export default function PayoutUploadForm() {
       <FileInput
         label="Selecciona los archivos CSV de retiros"
         accept=".csv,.txt"
-        onChange={handlePayoutFileChange}
+        onChange={handleFileChange}
         multiple
       />
       <Button
         variant="secondary"
-        onClick={handlePayoutUpload}
-        disabled={payoutLoading}
+        onClick={handleUpload}
+        disabled={loading}
       >
-        {payoutLoading ? "Subiendo retiros..." : "Importar retiros"}
+        {loading ? "Subiendo retiros..." : "Importar retiros"}
       </Button>
-      {payoutFiles.length > 0 && !payoutLoading && !payoutError && (
+      {files.length > 0 && !loading && !error && (
         <p className="text-xs text-slate-500">
-          Archivos seleccionados: {payoutFiles.map((f) => f.name).join(", ")}
+          Archivos seleccionados: {files.map((f) => f.name).join(", ")}
         </p>
       )}
-      {payoutError && <Alert variant="error">{payoutError}</Alert>}
-      <UploadResults results={payoutResults} variant="secondary" />
+      {error && <Alert variant="error">{error}</Alert>}
+      <UploadResults results={results} variant="secondary" />
     </div>
   );
 }
