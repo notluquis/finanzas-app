@@ -1,11 +1,21 @@
 import React from "react";
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+type InputBaseProps = {
   label?: string;
   helper?: string;
   type?: string;
   rows?: number;
-}
+};
+
+type CommonHandlers = {
+  onChange?: (e: any) => void;
+  onBlur?: (e: any) => void;
+};
+
+type InputProps =
+  | (InputBaseProps & React.InputHTMLAttributes<HTMLInputElement> & CommonHandlers)
+  | (InputBaseProps & React.TextareaHTMLAttributes<HTMLTextAreaElement> & CommonHandlers)
+  | (InputBaseProps & React.SelectHTMLAttributes<HTMLSelectElement> & CommonHandlers);
 
 export default function Input(props: InputProps) {
   const { label, helper, type = "text", rows = 3, className = "", children, ...rest } = props;
@@ -38,7 +48,7 @@ export default function Input(props: InputProps) {
     control = (
       <input
         type={type}
-        {...rest}
+        {...(rest as React.InputHTMLAttributes<HTMLInputElement>)}
         className={sharedClasses}
       />
     );

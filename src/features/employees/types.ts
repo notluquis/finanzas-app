@@ -3,6 +3,10 @@ export type Employee = {
   full_name: string;
   role: string;
   email: string | null;
+  rut: string | null;
+  bank_name: string | null;
+  bank_account_type: string | null;
+  bank_account_number: string | null;
   hourly_rate: number;
   overtime_rate: number | null;
   retention_rate: number;
@@ -16,6 +20,10 @@ export type EmployeePayload = {
   full_name: string;
   role: string;
   email?: string | null;
+  rut?: string | null;
+  bank_name?: string | null;
+  bank_account_type?: string | null;
+  bank_account_number?: string | null;
   hourly_rate: number;
   overtime_rate?: number | null;
   retention_rate: number;

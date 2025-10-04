@@ -5,11 +5,16 @@ import type { Employee } from "../types";
 import Button from "../../../components/Button";
 import Input from "../../../components/Input";
 import Alert from "../../../components/Alert";
+import { formatRut, normalizeRut } from "../../../lib/rut";
 
 const EMPTY_FORM = {
   full_name: "",
   role: "",
   email: "",
+  rut: "",
+  bank_name: "",
+  bank_account_type: "",
+  bank_account_number: "",
   hourly_rate: "0",
   overtime_rate: "",
   retention_rate: "0.145",
@@ -26,6 +31,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
   const canEdit = hasRole("GOD", "ADMIN");
 
   const [form, setForm] = useState(EMPTY_FORM);
+  // no-op
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +41,10 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
         full_name: employee.full_name,
         role: employee.role,
         email: employee.email ?? "",
+        rut: employee.rut ?? "",
+        bank_name: employee.bank_name ?? "",
+        bank_account_type: employee.bank_account_type ?? "",
+        bank_account_number: employee.bank_account_number ?? "",
         hourly_rate: String(employee.hourly_rate),
         overtime_rate: employee.overtime_rate != null ? String(employee.overtime_rate) : "",
         retention_rate: String(employee.retention_rate),
@@ -52,6 +62,10 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
       full_name: form.full_name.trim(),
       role: form.role.trim(),
       email: form.email.trim() || null,
+      rut: form.rut.trim() || null,
+      bank_name: form.bank_name.trim() || null,
+      bank_account_type: form.bank_account_type.trim() || null,
+      bank_account_number: form.bank_account_number.trim() || null,
       hourly_rate: Number(form.hourly_rate || 0),
       overtime_rate: form.overtime_rate ? Number(form.overtime_rate) : null,
       retention_rate: Number(form.retention_rate || 0),
@@ -101,6 +115,46 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
           value={form.email}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, email: event.target.value }))}
           placeholder="correo@bioalergia.cl"
+        />
+        <Input
+          label="RUT"
+          type="text"
+          value={form.rut}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, rut: event.target.value }))}
+          onBlur={() => setForm((prev) => ({ ...prev, rut: formatRut(normalizeRut(prev.rut) ?? prev.rut) }))}
+          placeholder="12.345.678-9"
+        />
+        {form.rut && normalizeRut(form.rut) === null && (
+          <span className="text-xs text-red-600">RUT inválido (se formatea al salir del campo)</span>
+        )}
+        <Input
+          label="Banco"
+          type="text"
+          value={form.bank_name}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, bank_name: event.target.value }))}
+          placeholder="BancoEstado"
+        />
+        {/* Account type with datalist to avoid UI toggling */}
+        <Input
+          label="Tipo de cuenta"
+          type="text"
+          value={form.bank_account_type}
+          list="bank-account-type-options"
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, bank_account_type: event.target.value }))}
+          placeholder="RUT / VISTA / CORRIENTE / AHORRO"
+        />
+        <datalist id="bank-account-type-options">
+          <option value="RUT" />
+          <option value="VISTA" />
+          <option value="CORRIENTE" />
+          <option value="AHORRO" />
+        </datalist>
+        <Input
+          label="N° de cuenta"
+          type="text"
+          value={form.bank_account_number}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, bank_account_number: event.target.value }))}
+          placeholder="12345678"
         />
         <Input
           label="Valor hora (CLP)"

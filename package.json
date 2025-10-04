@@ -20,7 +20,8 @@
     "env:encrypt": "npx @dotenvx/dotenvx encrypt",
     "env:decrypt": "npx @dotenvx/dotenvx decrypt",
     "prod:secure": "npx @dotenvx/dotenvx run -- npm start",
-    "security:check": "npm audit && npx @dotenvx/dotenvx run --quiet -- echo '✅ Variables de entorno cargadas de forma segura'"
+    "security:check": "npm audit && npx @dotenvx/dotenvx run --quiet -- echo '✅ Variables de entorno cargadas de forma segura'",
+    "test:employees": "node test/employees.integration.test.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

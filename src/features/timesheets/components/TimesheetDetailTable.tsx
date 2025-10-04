@@ -69,6 +69,21 @@ export default function TimesheetDetailTable({
               ))}
             </select>
           )}
+          {selectedEmployee && (
+            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-[11px] text-slate-600">
+              {selectedEmployee.rut ? <span className="font-medium">{selectedEmployee.rut}</span> : <span>Sin RUT</span>}
+              <span>·</span>
+              {selectedEmployee.bank_name ? (
+                <span className="whitespace-nowrap">
+                  {selectedEmployee.bank_name}
+                  {selectedEmployee.bank_account_type ? ` · ${selectedEmployee.bank_account_type}` : ""}
+                  {selectedEmployee.bank_account_number ? ` · ${selectedEmployee.bank_account_number}` : ""}
+                </span>
+              ) : (
+                <span>Sin banco</span>
+              )}
+            </span>
+          )}
         </div>
       </div>
 
@@ -130,7 +145,7 @@ export default function TimesheetDetailTable({
                         type="text"
                         placeholder="00:00"
                         value={row.worked}
-                        onChange={(event) => onRowChange(index, "worked", event.target.value)}
+                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => onRowChange(index, "worked", event.target.value)}
                         className="w-full"
                         disabled={!canEdit}
                       />
@@ -140,7 +155,7 @@ export default function TimesheetDetailTable({
                         type="text"
                         placeholder="00:00"
                         value={row.overtime}
-                        onChange={(event) => onRowChange(index, "overtime", event.target.value)}
+                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => onRowChange(index, "overtime", event.target.value)}
                         className="w-full"
                         disabled={!canEdit}
                       />
@@ -150,7 +165,7 @@ export default function TimesheetDetailTable({
                         type="number"
                         min="0"
                         value={row.extra}
-                        onChange={(event) => onRowChange(index, "extra", event.target.value)}
+                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => onRowChange(index, "extra", event.target.value)}
                         className="w-full"
                         disabled={!canEdit}
                       />

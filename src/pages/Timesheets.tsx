@@ -274,7 +274,7 @@ export default function TimesheetsPage() {
           label="Periodo"
           type="month"
           value={month}
-          onChange={(event) => {
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
             setMonth(event.target.value);
             setInfo(null);
           }}

@@ -124,6 +124,16 @@ export const employeeSchema = z.object({
   full_name: z.string().min(1).max(191),
   role: z.string().min(1).max(120),
   email: z.string().email().nullable().optional(),
+  rut: z
+    .string()
+    .trim()
+    .min(3)
+    .max(20)
+    .nullable()
+    .optional(),
+  bank_name: z.string().trim().max(120).nullable().optional(),
+  bank_account_type: z.string().trim().max(32).nullable().optional(),
+  bank_account_number: z.string().trim().max(64).nullable().optional(),
   hourly_rate: z.coerce.number().min(0),
   overtime_rate: z.coerce.number().min(0).nullable().optional(),
   retention_rate: z.coerce.number().min(0).max(1),

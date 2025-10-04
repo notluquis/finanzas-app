@@ -468,6 +468,12 @@ export async function ensureSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
 
+  // Extend employees with RUT and banking info (idempotent)
+  await addColumnIfMissing(pool, "employees", "`rut` VARCHAR(20) NULL AFTER email");
+  await addColumnIfMissing(pool, "employees", "`bank_name` VARCHAR(120) NULL AFTER rut");
+  await addColumnIfMissing(pool, "employees", "`bank_account_type` VARCHAR(32) NULL AFTER bank_name");
+  await addColumnIfMissing(pool, "employees", "`bank_account_number` VARCHAR(64) NULL AFTER bank_account_type");
+
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS employee_timesheets (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -1807,6 +1813,10 @@ export type EmployeeRecord = {
   full_name: string;
   role: string;
   email: string | null;
+  rut: string | null;
+  bank_name: string | null;
+  bank_account_type: string | null;
+  bank_account_number: string | null;
   hourly_rate: number;
   overtime_rate: number | null;
   retention_rate: number;
@@ -1816,7 +1826,7 @@ export type EmployeeRecord = {
   updated_at: string;
 };
 
-const EMPLOYEE_FIELDS = `id, full_name, role, email, hourly_rate, overtime_rate, retention_rate, status, metadata, created_at, updated_at`;
+const EMPLOYEE_FIELDS = `id, full_name, role, email, rut, bank_name, bank_account_type, bank_account_number, hourly_rate, overtime_rate, retention_rate, status, metadata, created_at, updated_at`;
 
 export async function listEmployees(options: { includeInactive?: boolean } = {}) {
   const pool = getPool();
@@ -1861,20 +1871,29 @@ export async function createEmployee(data: {
   full_name: string;
   role: string;
   email?: string | null;
+  rut?: string | null;
+  bank_name?: string | null;
+  bank_account_type?: string | null;
+  bank_account_number?: string | null;
   hourly_rate: number;
   overtime_rate?: number | null;
   retention_rate: number;
   metadata?: Record<string, unknown> | null;
 }) {
   const pool = getPool();
+  const normalizedRut = data.rut ? normalizeRut(data.rut) : null;
   const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO employees
-      (full_name, role, email, hourly_rate, overtime_rate, retention_rate, metadata)
-     VALUES (?, ?, ?, ?, ?, ?, ?)` ,
+      (full_name, role, email, rut, bank_name, bank_account_type, bank_account_number, hourly_rate, overtime_rate, retention_rate, metadata)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
     [
       data.full_name,
       data.role,
       data.email ?? null,
+      normalizedRut,
+      data.bank_name ?? null,
+      data.bank_account_type ?? null,
+      data.bank_account_number ?? null,
       data.hourly_rate,
       data.overtime_rate ?? null,
       data.retention_rate,
@@ -1891,6 +1910,10 @@ export async function updateEmployee(
     full_name?: string;
     role?: string;
     email?: string | null;
+    rut?: string | null;
+    bank_name?: string | null;
+    bank_account_type?: string | null;
+    bank_account_number?: string | null;
     hourly_rate?: number;
     overtime_rate?: number | null;
     retention_rate?: number;
@@ -1913,6 +1936,22 @@ export async function updateEmployee(
   if (data.email !== undefined) {
     fields.push("email = ?");
     params.push(data.email ?? null);
+  }
+  if (data.rut !== undefined) {
+    fields.push("rut = ?");
+    params.push(data.rut ? normalizeRut(data.rut) : null);
+  }
+  if (data.bank_name !== undefined) {
+    fields.push("bank_name = ?");
+    params.push(data.bank_name ?? null);
+  }
+  if (data.bank_account_type !== undefined) {
+    fields.push("bank_account_type = ?");
+    params.push(data.bank_account_type ?? null);
+  }
+  if (data.bank_account_number !== undefined) {
+    fields.push("bank_account_number = ?");
+    params.push(data.bank_account_number ?? null);
   }
   if (data.hourly_rate != null) {
     fields.push("hourly_rate = ?");
@@ -1958,6 +1997,10 @@ function mapEmployeeRow(row: RowDataPacket): EmployeeRecord {
     full_name: String(row.full_name),
     role: String(row.role),
     email: row.email ? String(row.email) : null,
+    rut: row.rut ? String(row.rut) : null,
+    bank_name: row.bank_name ? String(row.bank_name) : null,
+    bank_account_type: row.bank_account_type ? String(row.bank_account_type) : null,
+    bank_account_number: row.bank_account_number ? String(row.bank_account_number) : null,
     hourly_rate: Number(row.hourly_rate ?? 0),
     overtime_rate: row.overtime_rate != null ? Number(row.overtime_rate) : null,
     retention_rate: Number(row.retention_rate ?? 0),

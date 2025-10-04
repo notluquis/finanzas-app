@@ -6,7 +6,7 @@ import type { Employee } from "../types";
 import Button from "../../../components/Button";
 import Alert from "../../../components/Alert";
 
-type EmployeeColumn = "name" | "role" | "email" | "hourlyRate" | "overtimeRate" | "retentionRate" | "status" | "actions";
+type EmployeeColumn = "name" | "role" | "email" | "rut" | "bank" | "hourlyRate" | "overtimeRate" | "retentionRate" | "status" | "actions";
 
 interface EmployeeTableProps {
   employees: Employee[];
@@ -27,7 +27,7 @@ export default function EmployeeTable({
   const canEdit = hasRole("GOD", "ADMIN");
 
   const columns: EmployeeColumn[] = [
-    "name", "role", "email", "hourlyRate", "overtimeRate", "retentionRate", "status",
+    "name", "role", "email", "rut", "bank", "hourlyRate", "overtimeRate", "retentionRate", "status",
     ...(canEdit ? ["actions" as const] : []),
   ];
 
@@ -114,6 +114,8 @@ export default function EmployeeTable({
               {column === "hourlyRate" && "Hora base"}
               {column === "overtimeRate" && "Hora extra"}
               {column === "retentionRate" && "Retención"}
+              {column === "rut" && "RUT"}
+              {column === "bank" && "Banco / Cuenta"}
               {column === "status" && "Estado"}
             </span>
           </label>
@@ -147,6 +149,20 @@ export default function EmployeeTable({
                     {...table.getSortProps("email")}
                   >
                     Correo {table.getSortIcon("email")}
+                  </th>
+                )}
+                {table.isColumnVisible("rut") && (
+                  <th 
+                    className="px-4 py-3 text-left font-semibold whitespace-nowrap"
+                  >
+                    RUT
+                  </th>
+                )}
+                {table.isColumnVisible("bank") && (
+                  <th 
+                    className="px-4 py-3 text-left font-semibold whitespace-nowrap"
+                  >
+                    Banco / Cuenta
                   </th>
                 )}
             {table.isColumnVisible("hourlyRate") && (
@@ -197,6 +213,22 @@ export default function EmployeeTable({
               )}
               {table.isColumnVisible("email") && (
                 <td className="px-4 py-3 text-slate-500">{employee.email ?? "—"}</td>
+              )}
+              {table.isColumnVisible("rut") && (
+                <td className="px-4 py-3 text-slate-600">{employee.rut ?? "—"}</td>
+              )}
+              {table.isColumnVisible("bank") && (
+                <td className="px-4 py-3 text-slate-600">
+                  {employee.bank_name ? (
+                    <span className="whitespace-nowrap">
+                      {employee.bank_name}
+                      {employee.bank_account_type ? ` · ${employee.bank_account_type}` : ""}
+                      {employee.bank_account_number ? ` · ${employee.bank_account_number}` : ""}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
               )}
               {table.isColumnVisible("hourlyRate") && (
                 <td className="px-4 py-3 text-slate-600">{fmtCLP(employee.hourly_rate)}</td>
