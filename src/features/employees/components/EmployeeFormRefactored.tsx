@@ -10,6 +10,7 @@ import { formatRut, normalizeRut } from "../../../lib/rut";
 import Alert from "../../../components/Alert";
 
 const employeeFormSchema = z.object({
+  no_fixed_schedule: z.boolean().optional(),
   full_name: z.string().trim().min(1, "El nombre completo es requerido"),
   role: z.string().trim().min(1, "El cargo es requerido"),
   email: z.string().trim().email("Email inválido").optional().or(z.literal("")),
@@ -17,7 +18,9 @@ const employeeFormSchema = z.object({
   bank_name: z.string().trim().max(120).optional().or(z.literal("")),
   bank_account_type: z.string().trim().max(32).optional().or(z.literal("")),
   bank_account_number: z.string().trim().max(64).optional().or(z.literal("")),
-  hourly_rate: z.coerce.number().min(0, "La tarifa por hora debe ser mayor o igual a 0"),
+  salary_type: z.enum(["hourly", "fixed"]).default("hourly"),
+  hourly_rate: z.coerce.number().min(0).optional(),
+  fixed_salary: z.coerce.number().min(0).optional(),
   overtime_rate: z.coerce.number().min(0, "La tarifa de horas extra debe ser mayor o igual a 0").optional(),
   retention_rate: z.coerce.number().min(0).max(1, "La tasa de retención debe estar entre 0 y 1"),
 });
@@ -25,6 +28,7 @@ const employeeFormSchema = z.object({
 type EmployeeFormData = z.infer<typeof employeeFormSchema>;
 
 const INITIAL_VALUES: EmployeeFormData = {
+  no_fixed_schedule: false,
   full_name: "",
   role: "",
   email: "",
@@ -32,7 +36,9 @@ const INITIAL_VALUES: EmployeeFormData = {
   bank_name: "",
   bank_account_type: "",
   bank_account_number: "",
+  salary_type: "hourly",
   hourly_rate: 0,
+  fixed_salary: undefined,
   overtime_rate: undefined,
   retention_rate: 0.145,
 };
@@ -61,9 +67,12 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
         bank_name: values.bank_name || null,
         bank_account_type: values.bank_account_type || null,
         bank_account_number: values.bank_account_number || null,
-        hourly_rate: values.hourly_rate,
-        overtime_rate: values.overtime_rate || null,
-        retention_rate: values.retention_rate,
+    salary_type: values.salary_type === "fixed" ? "fixed" : "hourly" as "hourly" | "fixed",
+    hourly_rate: values.salary_type === "hourly" ? values.hourly_rate : undefined,
+    fixed_salary: values.salary_type === "fixed" ? values.fixed_salary : undefined,
+    overtime_rate: values.overtime_rate || null,
+    retention_rate: values.retention_rate,
+    metadata: { ...(employee?.metadata ?? {}), no_fixed_schedule: values.no_fixed_schedule ?? false },
       };
 
       if (employee?.id) {
@@ -88,7 +97,9 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
       form.setValue("bank_name", employee.bank_name ?? "");
       form.setValue("bank_account_type", employee.bank_account_type ?? "");
       form.setValue("bank_account_number", employee.bank_account_number ?? "");
-      form.setValue("hourly_rate", employee.hourly_rate);
+      form.setValue("salary_type", employee.salary_type ?? "hourly");
+      form.setValue("hourly_rate", employee.hourly_rate ?? 0);
+      form.setValue("fixed_salary", employee.fixed_salary ?? undefined);
       form.setValue("overtime_rate", employee.overtime_rate);
       form.setValue("retention_rate", employee.retention_rate);
     } else {
@@ -102,11 +113,24 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
       className="space-y-4 rounded-2xl border border-[var(--brand-primary)]/15 bg-white p-6 text-sm shadow-sm"
     >
       <div className="grid gap-4 md:grid-cols-3">
+        {form.values.salary_type === "fixed" && (
+          <div className="col-span-3 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="no-fixed-schedule"
+              checked={form.values.no_fixed_schedule ?? false}
+              onChange={e => form.setValue("no_fixed_schedule", e.target.checked)}
+              className="mr-2"
+            />
+            <label htmlFor="no-fixed-schedule" className="text-xs font-semibold">No tiene horario fijo</label>
+          </div>
+        )}
         <div>
           <Input
             label="Nombre completo"
             type="text"
             {...form.getFieldProps("full_name")}
+            value={typeof form.values.full_name === "boolean" ? "" : form.values.full_name}
             required
           />
           {form.getFieldError("full_name") && (
@@ -119,6 +143,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
             label="Cargo"
             type="text"
             {...form.getFieldProps("role")}
+            value={typeof form.values.role === "boolean" ? "" : form.values.role}
             required
           />
           {form.getFieldError("role") && (
@@ -131,6 +156,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
             label="Correo"
             type="email"
             {...form.getFieldProps("email")}
+            value={typeof form.values.email === "boolean" ? "" : form.values.email}
           />
           {form.getFieldError("email") && (
             <p className="mt-1 text-xs text-red-600">{form.getFieldError("email")}</p>
@@ -141,8 +167,8 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
           <Input
             label="RUT"
             type="text"
-            placeholder="12.345.678-9"
             {...form.getFieldProps("rut")}
+            value={typeof form.values.rut === "boolean" ? "" : form.values.rut}
             onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
               const v = e.target.value.trim();
               if (v) form.setValue("rut", formatRut(normalizeRut(v) ?? v));
@@ -150,7 +176,12 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
           />
         </div>
         <div>
-          <Input label="Banco" type="text" placeholder="BancoEstado" {...form.getFieldProps("bank_name")} />
+          <Input
+            label="Banco"
+            type="text"
+            {...form.getFieldProps("bank_name")}
+            value={typeof form.values.bank_name === "boolean" ? "" : form.values.bank_name}
+          />
         </div>
         <div>
           <Input
@@ -167,7 +198,24 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
           </Input>
         </div>
         <div>
-          <Input label="N° de cuenta" type="text" placeholder="12345678" {...form.getFieldProps("bank_account_number")} />
+          <Input
+            label="N° de cuenta"
+            type="text"
+            {...form.getFieldProps("bank_account_number")}
+            value={typeof form.values.bank_account_number === "boolean" ? "" : form.values.bank_account_number}
+          />
+        </div>
+
+        <div className="col-span-3">
+          <label className="block text-xs font-semibold mb-1">Tipo de salario</label>
+          <select
+            className="w-full border rounded px-2 py-1 text-sm"
+            value={form.values.salary_type}
+            onChange={e => form.setValue("salary_type", e.target.value === "fixed" ? "fixed" : "hourly")}
+          >
+            <option value="hourly">Por hora</option>
+            <option value="fixed">Sueldo fijo mensual</option>
+          </select>
         </div>
 
         <div>
@@ -177,9 +225,21 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
             step="0.01"
             min="0"
             {...form.getFieldProps("hourly_rate")}
+            value={typeof form.values.hourly_rate === "boolean" ? "" : form.values.hourly_rate}
+            required={form.values.salary_type === "hourly"}
+            disabled={form.values.salary_type !== "hourly"}
           />
           {form.getFieldError("hourly_rate") && (
             <p className="mt-1 text-xs text-red-600">{form.getFieldError("hourly_rate")}</p>
+          )}
+          {form.values.salary_type === "fixed" && (
+            <Input
+              label="Sueldo fijo mensual (CLP)"
+              type="number"
+              value={typeof form.values.fixed_salary === "boolean" ? "" : form.values.fixed_salary ?? ""}
+              onChange={e => form.setValue("fixed_salary", e.target.value)}
+              required
+            />
           )}
         </div>
 
@@ -190,6 +250,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
             step="0.01"
             min="0"
             {...form.getFieldProps("overtime_rate")}
+            value={typeof form.values.overtime_rate === "boolean" ? "" : form.values.overtime_rate}
           />
           {form.getFieldError("overtime_rate") && (
             <p className="mt-1 text-xs text-red-600">{form.getFieldError("overtime_rate")}</p>
@@ -204,6 +265,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
             min="0"
             max="1"
             {...form.getFieldProps("retention_rate")}
+            value={typeof form.values.retention_rate === "boolean" ? "" : form.values.retention_rate}
           />
           {form.getFieldError("retention_rate") && (
             <p className="mt-1 text-xs text-red-600">{form.getFieldError("retention_rate")}</p>

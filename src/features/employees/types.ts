@@ -7,7 +7,9 @@ export type Employee = {
   bank_name: string | null;
   bank_account_type: string | null;
   bank_account_number: string | null;
+  salary_type: "hourly" | "fixed";
   hourly_rate: number;
+  fixed_salary: number | null;
   overtime_rate: number | null;
   retention_rate: number;
   status: "ACTIVE" | "INACTIVE";
@@ -24,7 +26,9 @@ export type EmployeePayload = {
   bank_name?: string | null;
   bank_account_type?: string | null;
   bank_account_number?: string | null;
-  hourly_rate: number;
+  salary_type: "hourly" | "fixed";
+  hourly_rate?: number;
+  fixed_salary?: number | null;
   overtime_rate?: number | null;
   retention_rate: number;
   metadata?: Record<string, unknown> | null;

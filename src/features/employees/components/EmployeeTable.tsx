@@ -132,7 +132,7 @@ export default function EmployeeTable({
                     className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20 whitespace-nowrap"
                     {...table.getSortProps("name")}
                   >
-                    Nombre {table.getSortIcon("name")}
+                    <span className="inline-flex items-center gap-1">Nombre {table.getSortIcon("name")}</span>
                   </th>
                 )}
                 {table.isColumnVisible("role") && (
@@ -140,7 +140,7 @@ export default function EmployeeTable({
                     className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20 whitespace-nowrap"
                     {...table.getSortProps("role")}
                   >
-                    Cargo {table.getSortIcon("role")}
+                    <span className="inline-flex items-center gap-1">Cargo {table.getSortIcon("role")}</span>
                   </th>
                 )}
                 {table.isColumnVisible("email") && (
@@ -148,7 +148,7 @@ export default function EmployeeTable({
                     className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20 whitespace-nowrap"
                     {...table.getSortProps("email")}
                   >
-                    Correo {table.getSortIcon("email")}
+                    <span className="inline-flex items-center gap-1">Correo {table.getSortIcon("email")}</span>
                   </th>
                 )}
                 {table.isColumnVisible("rut") && (
@@ -170,7 +170,7 @@ export default function EmployeeTable({
                 className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20"
                 {...table.getSortProps("hourlyRate")}
               >
-                Hora base {table.getSortIcon("hourlyRate")}
+                <span className="inline-flex items-center gap-1">Hora base {table.getSortIcon("hourlyRate")}</span>
               </th>
             )}
             {table.isColumnVisible("overtimeRate") && (
@@ -178,7 +178,7 @@ export default function EmployeeTable({
                 className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20"
                 {...table.getSortProps("overtimeRate")}
               >
-                Hora extra {table.getSortIcon("overtimeRate")}
+                <span className="inline-flex items-center gap-1">Hora extra {table.getSortIcon("overtimeRate")}</span>
               </th>
             )}
             {table.isColumnVisible("retentionRate") && (
@@ -186,7 +186,7 @@ export default function EmployeeTable({
                 className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20"
                 {...table.getSortProps("retentionRate")}
               >
-                Retención {table.getSortIcon("retentionRate")}
+                <span className="inline-flex items-center gap-1">Retención {table.getSortIcon("retentionRate")}</span>
               </th>
             )}
             {table.isColumnVisible("status") && (
@@ -194,7 +194,7 @@ export default function EmployeeTable({
                 className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-[var(--brand-primary)]/20"
                 {...table.getSortProps("status")}
               >
-                Estado {table.getSortIcon("status")}
+                <span className="inline-flex items-center gap-1">Estado {table.getSortIcon("status")}</span>
               </th>
             )}
             {canEdit && table.isColumnVisible("actions") && (

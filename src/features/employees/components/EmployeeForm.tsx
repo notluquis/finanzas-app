@@ -15,7 +15,9 @@ const EMPTY_FORM = {
   bank_name: "",
   bank_account_type: "",
   bank_account_number: "",
+  salary_type: "hourly",
   hourly_rate: "0",
+  fixed_salary: "",
   overtime_rate: "",
   retention_rate: "0.145",
 };
@@ -45,7 +47,9 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
         bank_name: employee.bank_name ?? "",
         bank_account_type: employee.bank_account_type ?? "",
         bank_account_number: employee.bank_account_number ?? "",
-        hourly_rate: String(employee.hourly_rate),
+        salary_type: employee.salary_type ?? "hourly",
+        hourly_rate: String(employee.hourly_rate ?? "0"),
+        fixed_salary: employee.fixed_salary != null ? String(employee.fixed_salary) : "",
         overtime_rate: employee.overtime_rate != null ? String(employee.overtime_rate) : "",
         retention_rate: String(employee.retention_rate),
       });
@@ -66,9 +70,11 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
       bank_name: form.bank_name.trim() || null,
       bank_account_type: form.bank_account_type.trim() || null,
       bank_account_number: form.bank_account_number.trim() || null,
-      hourly_rate: Number(form.hourly_rate || 0),
-      overtime_rate: form.overtime_rate ? Number(form.overtime_rate) : null,
-      retention_rate: Number(form.retention_rate || 0),
+  salary_type: form.salary_type === "fixed" ? "fixed" : "hourly",
+  hourly_rate: form.salary_type === "hourly" ? Number(form.hourly_rate || 0) : undefined,
+  fixed_salary: form.salary_type === "fixed" ? Number(form.fixed_salary || 0) : undefined,
+  overtime_rate: form.overtime_rate ? Number(form.overtime_rate) : null,
+  retention_rate: Number(form.retention_rate || 0),
     };
 
     setSaving(true);
@@ -95,6 +101,17 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
       className="space-y-4 rounded-2xl border border-[var(--brand-primary)]/15 bg-white p-6 text-sm shadow-sm"
     >
       <div className="grid gap-4 md:grid-cols-3">
+      <div className="col-span-3">
+        <label className="block text-xs font-semibold mb-1">Tipo de salario</label>
+        <select
+          className="w-full border rounded px-2 py-1 text-sm"
+          value={form.salary_type}
+          onChange={e => setForm(prev => ({ ...prev, salary_type: e.target.value }))}
+        >
+          <option value="hourly">Por hora</option>
+          <option value="fixed">Sueldo fijo mensual</option>
+        </select>
+      </div>
         <Input
           label="Nombre completo"
           type="text"
@@ -162,8 +179,19 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
           min="0"
           value={form.hourly_rate}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, hourly_rate: event.target.value }))}
-          required
+          required={form.salary_type === "hourly"}
+          disabled={form.salary_type !== "hourly"}
         />
+        {form.salary_type === "fixed" && (
+          <Input
+            label="Sueldo fijo mensual (CLP)"
+            type="number"
+            min="0"
+            value={form.fixed_salary}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, fixed_salary: event.target.value }))}
+            required
+          />
+        )}
         <Input
           label="Valor hora extra (CLP)"
           type="number"

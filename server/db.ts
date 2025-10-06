@@ -457,7 +457,9 @@ export async function ensureSchema() {
       full_name VARCHAR(191) NOT NULL,
       role VARCHAR(120) NOT NULL,
       email VARCHAR(191) NULL,
+      salary_type ENUM('hourly','fixed') NOT NULL DEFAULT 'hourly',
       hourly_rate DECIMAL(10, 2) NOT NULL DEFAULT 0,
+      fixed_salary DECIMAL(12, 2) NULL,
       overtime_rate DECIMAL(10, 2) NULL,
       retention_rate DECIMAL(5, 4) NOT NULL DEFAULT 0.0000,
       status ENUM('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',
@@ -469,6 +471,9 @@ export async function ensureSchema() {
   `);
 
   // Extend employees with RUT and banking info (idempotent)
+  // Extiende empleados con tipo de salario y sueldo fijo (idempotente)
+  await addColumnIfMissing(pool, "employees", "`salary_type` ENUM('hourly','fixed') NOT NULL DEFAULT 'hourly' AFTER email");
+  await addColumnIfMissing(pool, "employees", "`fixed_salary` DECIMAL(12,2) NULL AFTER hourly_rate");
   await addColumnIfMissing(pool, "employees", "`rut` VARCHAR(20) NULL AFTER email");
   await addColumnIfMissing(pool, "employees", "`bank_name` VARCHAR(120) NULL AFTER rut");
   await addColumnIfMissing(pool, "employees", "`bank_account_type` VARCHAR(32) NULL AFTER bank_name");
@@ -1817,7 +1822,9 @@ export type EmployeeRecord = {
   bank_name: string | null;
   bank_account_type: string | null;
   bank_account_number: string | null;
+  salary_type: "hourly" | "fixed";
   hourly_rate: number;
+  fixed_salary: number | null;
   overtime_rate: number | null;
   retention_rate: number;
   status: "ACTIVE" | "INACTIVE";
@@ -1826,7 +1833,7 @@ export type EmployeeRecord = {
   updated_at: string;
 };
 
-const EMPLOYEE_FIELDS = `id, full_name, role, email, rut, bank_name, bank_account_type, bank_account_number, hourly_rate, overtime_rate, retention_rate, status, metadata, created_at, updated_at`;
+const EMPLOYEE_FIELDS = `id, full_name, role, email, rut, bank_name, bank_account_type, bank_account_number, salary_type, hourly_rate, fixed_salary, overtime_rate, retention_rate, status, metadata, created_at, updated_at`;
 
 export async function listEmployees(options: { includeInactive?: boolean } = {}) {
   const pool = getPool();
@@ -2001,7 +2008,9 @@ function mapEmployeeRow(row: RowDataPacket): EmployeeRecord {
     bank_name: row.bank_name ? String(row.bank_name) : null,
     bank_account_type: row.bank_account_type ? String(row.bank_account_type) : null,
     bank_account_number: row.bank_account_number ? String(row.bank_account_number) : null,
+    salary_type: row.salary_type === "fixed" ? "fixed" : "hourly",
     hourly_rate: Number(row.hourly_rate ?? 0),
+    fixed_salary: row.fixed_salary != null ? Number(row.fixed_salary) : null,
     overtime_rate: row.overtime_rate != null ? Number(row.overtime_rate) : null,
     retention_rate: Number(row.retention_rate ?? 0),
     status: row.status as EmployeeRecord["status"],

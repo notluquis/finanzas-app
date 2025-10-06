@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 
 export type SortDirection = "asc" | "desc";
 
@@ -35,9 +35,14 @@ export function useSorting<T extends string>({
     });
   }, []);
 
-  const getSortIcon = useCallback((column: T) => {
-    if (sortState.column !== column) return "↕️";
-    return sortState.direction === "asc" ? "↑" : "↓";
+  const getSortIcon = useCallback((column: T): React.ReactNode => {
+    if (sortState.column !== column) return null;
+    const symbol = sortState.direction === "asc" ? "▲" : "▼";
+    return React.createElement(
+      'span',
+      { className: 'ml-1 text-[10px] opacity-60 align-middle select-none' },
+      symbol
+    );
   }, [sortState]);
 
   const getSortProps = useCallback((column: T) => ({
