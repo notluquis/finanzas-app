@@ -1882,7 +1882,9 @@ export async function createEmployee(data: {
   bank_name?: string | null;
   bank_account_type?: string | null;
   bank_account_number?: string | null;
-  hourly_rate: number;
+  salary_type: "hourly" | "fixed";
+  hourly_rate?: number;
+  fixed_salary?: number | null;
   overtime_rate?: number | null;
   retention_rate: number;
   metadata?: Record<string, unknown> | null;
@@ -1891,8 +1893,8 @@ export async function createEmployee(data: {
   const normalizedRut = data.rut ? normalizeRut(data.rut) : null;
   const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO employees
-      (full_name, role, email, rut, bank_name, bank_account_type, bank_account_number, hourly_rate, overtime_rate, retention_rate, metadata)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
+      (full_name, role, email, rut, bank_name, bank_account_type, bank_account_number, salary_type, hourly_rate, fixed_salary, overtime_rate, retention_rate, metadata)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
     [
       data.full_name,
       data.role,
@@ -1901,7 +1903,9 @@ export async function createEmployee(data: {
       data.bank_name ?? null,
       data.bank_account_type ?? null,
       data.bank_account_number ?? null,
-      data.hourly_rate,
+      data.salary_type,
+      data.hourly_rate ?? null,
+      data.fixed_salary ?? null,
       data.overtime_rate ?? null,
       data.retention_rate,
       data.metadata ? JSON.stringify(data.metadata) : null,
@@ -1921,7 +1925,9 @@ export async function updateEmployee(
     bank_name?: string | null;
     bank_account_type?: string | null;
     bank_account_number?: string | null;
+    salary_type?: "hourly" | "fixed";
     hourly_rate?: number;
+    fixed_salary?: number | null;
     overtime_rate?: number | null;
     retention_rate?: number;
     status?: "ACTIVE" | "INACTIVE";
@@ -1960,9 +1966,17 @@ export async function updateEmployee(
     fields.push("bank_account_number = ?");
     params.push(data.bank_account_number ?? null);
   }
+  if (data.salary_type != null) {
+    fields.push("salary_type = ?");
+    params.push(data.salary_type);
+  }
   if (data.hourly_rate != null) {
     fields.push("hourly_rate = ?");
     params.push(data.hourly_rate);
+  }
+  if (data.fixed_salary !== undefined) {
+    fields.push("fixed_salary = ?");
+    params.push(data.fixed_salary ?? null);
   }
   if (data.overtime_rate !== undefined) {
     fields.push("overtime_rate = ?");
@@ -2586,6 +2600,7 @@ async function ensureEmployeeForCounterpart(name: string, email?: string | null)
       full_name: name,
       role: "GENERATED",
       email: null,
+      salary_type: "hourly",
       hourly_rate: 0,
       retention_rate: 0,
       metadata: { source: "counterpart" },
@@ -2600,6 +2615,7 @@ async function ensureEmployeeForCounterpart(name: string, email?: string | null)
     full_name: name,
     role: "GENERATED",
     email: trimmedEmail,
+    salary_type: "hourly",
     hourly_rate: 0,
     retention_rate: 0,
     metadata: { source: "counterpart" },

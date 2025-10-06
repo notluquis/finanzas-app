@@ -70,14 +70,12 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
       bank_name: form.bank_name.trim() || null,
       bank_account_type: form.bank_account_type.trim() || null,
       bank_account_number: form.bank_account_number.trim() || null,
-  salary_type: form.salary_type === "fixed" ? "fixed" : "hourly",
-  hourly_rate: form.salary_type === "hourly" ? Number(form.hourly_rate || 0) : undefined,
-  fixed_salary: form.salary_type === "fixed" ? Number(form.fixed_salary || 0) : undefined,
-  overtime_rate: form.overtime_rate ? Number(form.overtime_rate) : null,
-  retention_rate: Number(form.retention_rate || 0),
-    };
-
-    setSaving(true);
+      salary_type: form.salary_type === "fixed" ? "fixed" : "hourly" as "hourly" | "fixed",
+      hourly_rate: form.salary_type === "hourly" ? Number(form.hourly_rate || 0) : undefined,
+      fixed_salary: form.salary_type === "fixed" ? Number(form.fixed_salary || 0) : undefined,
+      overtime_rate: form.overtime_rate ? Number(form.overtime_rate) : null,
+      retention_rate: Number(form.retention_rate || 0),
+    };    setSaving(true);
     setError(null);
     try {
       if (employee?.id) {
