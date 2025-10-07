@@ -251,6 +251,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
             min="0"
             {...form.getFieldProps("overtime_rate")}
             value={typeof form.values.overtime_rate === "boolean" ? "" : form.values.overtime_rate}
+            placeholder="Opcional - dejar vacío si no aplica"
           />
           {form.getFieldError("overtime_rate") && (
             <p className="mt-1 text-xs text-red-600">{form.getFieldError("overtime_rate")}</p>

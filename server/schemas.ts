@@ -167,7 +167,8 @@ export const timesheetBulkSchema = z.object({
     .array(
       z.object({
         work_date: z.string().regex(dateRegex),
-        worked_minutes: z.coerce.number().int().min(0),
+        start_time: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+        end_time: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
         overtime_minutes: z.coerce.number().int().min(0).default(0),
         extra_amount: z.coerce.number().min(0).default(0),
         comment: z.string().max(255).nullable().optional(),

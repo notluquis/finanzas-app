@@ -196,7 +196,7 @@ export default function EmployeeForm({ employee, onSave, onCancel }: EmployeeFor
           min="0"
           value={form.overtime_rate}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, overtime_rate: event.target.value }))}
-          placeholder="Automático 1.5x"
+          placeholder="Opcional - dejar vacío si no aplica"
         />
         <Input
           label="Retención (%)"

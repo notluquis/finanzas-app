@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import dayjs from "dayjs";
 import { fmtCLP } from "../../../lib/format";
 import type { TimesheetSummaryRow } from "../types";
-import { minutesToDuration, formatExtraHours, formatTotalExtraHours } from "../utils";
+import { minutesToDuration } from "../utils";
 
 interface TimesheetSummaryTableProps {
   summary: { employees: TimesheetSummaryRow[]; totals: SummaryTotals } | null;
@@ -33,11 +33,11 @@ export default function TimesheetSummaryTable({
           <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
             <tr>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Trabajador</th>
-              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Cargo</th>
-              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Horas</th>
-              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Horas extra</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Función</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Horas trabajadas</th>
+              {/* Horas extra duplicaba "Extras"; se elimina */}
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Tarifa</th>
-              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Extras (HH:MM)</th>
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Extras</th>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Subtotal</th>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Retención</th>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Líquido</th>
@@ -56,17 +56,25 @@ export default function TimesheetSummaryTable({
             summary?.employees.map((row) => (
               <tr
                 key={row.employeeId}
-                className={`cursor-pointer odd:bg-slate-50/60 ${
-                  row.employeeId === selectedEmployeeId ? "bg-[var(--brand-primary)]/10" : ""
+                role="button"
+                tabIndex={0}
+                className={`cursor-pointer odd:bg-slate-50/60 hover:bg-[var(--brand-primary)]/5 transition-colors will-change-auto ${
+                  row.employeeId === selectedEmployeeId ? "bg-[var(--brand-primary)]/10 outline outline-2 outline-[var(--brand-primary)]/30" : ""
                 }`}
                 onClick={() => onSelectEmployee(row.employeeId)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectEmployee(row.employeeId);
+                  }
+                }}
               >
                 <td className="px-4 py-3 font-medium text-slate-700">{row.fullName}</td>
                 <td className="px-4 py-3 text-slate-500">{row.role}</td>
                 <td className="px-4 py-3 text-slate-600">{row.hoursFormatted}</td>
-                <td className="px-4 py-3 text-slate-600">{row.overtimeFormatted}</td>
                 <td className="px-4 py-3 text-slate-600">{fmtCLP(row.hourlyRate)}</td>
-                <td className="px-4 py-3 text-slate-600">{formatExtraHours(row)}</td>
+                {/* Extras deben venir del detalle (overtime) */}
+                <td className="px-4 py-3 text-slate-600">{row.overtimeFormatted}</td>
                 <td className="px-4 py-3 text-slate-600">{fmtCLP(row.subtotal)}</td>
                 <td className="px-4 py-3 text-slate-600">{fmtCLP(row.retention)}</td>
                 <td className="px-4 py-3 text-slate-600">{fmtCLP(row.net)}</td>
@@ -88,9 +96,9 @@ export default function TimesheetSummaryTable({
                 TOTAL
               </td>
               <td className="px-4 py-3 font-semibold">{summary.totals.hours}</td>
-              <td className="px-4 py-3 font-semibold">{summary.totals.overtime}</td>
+              {/* Extras totales desde detalle (overtime) */}
               <td className="px-4 py-3"></td>
-              <td className="px-4 py-3 font-semibold">{formatTotalExtraHours(summary.employees)}</td>
+              <td className="px-4 py-3 font-semibold">{summary.totals.overtime}</td>
               <td className="px-4 py-3 font-semibold">{fmtCLP(summary.totals.subtotal)}</td>
               <td className="px-4 py-3 font-semibold">{fmtCLP(summary.totals.retention)}</td>
               <td className="px-4 py-3 font-semibold">{fmtCLP(summary.totals.net)}</td>

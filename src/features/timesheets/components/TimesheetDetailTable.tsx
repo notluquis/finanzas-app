@@ -1,5 +1,7 @@
 import dayjs from "dayjs";
 import { useAuth } from "../../../context/AuthContext";
+import { useEffect, useState } from "react";
+import Modal from "../../../components/Modal";
 import Button from "../../../components/Button";
 import Input from "../../../components/Input";
 import { computeStatus, hasRowData, isRowDirty, parseDuration, computeExtraAmount, formatDateLabel } from "../utils";
@@ -41,84 +43,156 @@ export default function TimesheetDetailTable({
 }: TimesheetDetailTableProps) {
   const { hasRole } = useAuth();
   const canEdit = hasRole("GOD", "ADMIN", "ANALYST");
+  const [openOvertimeEditors, setOpenOvertimeEditors] = useState<Set<string>>(new Set());
+  const [commentPreview, setCommentPreview] = useState<{ date: string; text: string } | null>(null);
+  const [notWorkedDays, setNotWorkedDays] = useState<Set<string>>(new Set());
+
+  // Toggle helper for per-row actions menu
+  const toggleMenu = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle("hidden");
+  };
+
+  // Función para autocompletar hora (ej: "10" -> "10:00", "930" -> "09:30")
+  const formatTimeInput = (value: string) => {
+    if (!value.trim()) return "";
+    
+    // Si ya está en formato HH:MM, validar y devolver
+    if (/^[0-9]{1,2}:[0-9]{2}$/.test(value)) {
+      const [hours, minutes] = value.split(":").map(Number);
+      if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes < 60) {
+        return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+      }
+      return value;
+    }
+    
+    // Autocompletar números (ej: "10" -> "10:00", "930" -> "09:30")
+    const cleaned = value.replace(/[^0-9]/g, "");
+    if (cleaned.length === 0) return "";
+    
+    if (cleaned.length === 1 || cleaned.length === 2) {
+      const hours = parseInt(cleaned, 10);
+      if (hours >= 0 && hours <= 23) {
+        return `${hours.toString().padStart(2, "0")}:00`;
+      }
+    } else if (cleaned.length === 3 || cleaned.length === 4) {
+      const hours = parseInt(cleaned.slice(0, -2), 10);
+      const minutes = parseInt(cleaned.slice(-2), 10);
+      if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes < 60) {
+        return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+      }
+    }
+    
+    return value;
+  };
+
+  // Función para calcular horas trabajadas entre entrada y salida
+  const calculateWorkedHours = (startTime: string, endTime: string) => {
+    if (!startTime || !endTime || startTime === "00:00" || endTime === "00:00") return "00:00";
+    
+    const start = timeToMinutes(startTime);
+    const end = timeToMinutes(endTime);
+    
+    if (start === null || end === null) return "00:00";
+    
+    let totalMinutes = end - start;
+    
+    // Si end < start, asumimos que cruza medianoche (ej: 22:00 a 06:00)
+    if (totalMinutes < 0) {
+      totalMinutes = (24 * 60) + totalMinutes;
+    }
+    
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+  };
+  
+  // Función para convertir HH:MM a minutos
+  const timeToMinutes = (time: string): number | null => {
+    if (!/^[0-9]{1,2}:[0-9]{2}$/.test(time)) return null;
+    const [hours, minutes] = time.split(":").map(Number);
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes >= 60) return null;
+    return hours * 60 + minutes;
+  };
+  
+  // Función para calcular horas trabajadas totales (normal + extra)
+  const calculateTotalHours = (worked: string, overtime: string) => {
+    const workedMinutes = parseDuration(worked) || 0;
+    const overtimeMinutes = parseDuration(overtime) || 0;
+    const totalMinutes = workedMinutes + overtimeMinutes;
+    
+    if (totalMinutes === 0) return "00:00";
+    
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+  };
+
+  // Cerrar menús dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.dropdown-menu') && !target.closest('.dropdown-trigger')) {
+        document.querySelectorAll('.dropdown-menu').forEach(menu => {
+          menu.classList.add('hidden');
+        });
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   return (
     <div className="space-y-4 glass-card glass-underlay-gradient p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-[var(--brand-primary)]">Detalle diario</h2>
-          <p className="text-xs text-slate-500">
-            {selectedEmployee?.id
-              ? `Registros de ${monthLabel}`
-              : "Selecciona un trabajador en el resumen"}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-          <span>Pendientes: {pendingCount}</span>
-          <span>Cambios sin guardar: {modifiedCount}</span>
-          {employeeOptions.length > 0 && (
-            <select
-              value={selectedEmployee?.id ?? ""}
-              onChange={(event) => setSelectedEmployeeId(Number(event.target.value))}
-              className="rounded border px-3 py-2 text-sm"
-            >
-              {employeeOptions.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.full_name}
-                </option>
-              ))}
-            </select>
-          )}
+        <div className="text-sm text-slate-600">
+          <span className="font-semibold">{monthLabel}</span>
           {selectedEmployee && (
-            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-[11px] text-slate-600">
-              {selectedEmployee.rut ? <span className="font-medium">{selectedEmployee.rut}</span> : <span>Sin RUT</span>}
-              <span>·</span>
-              {selectedEmployee.bank_name ? (
-                <span className="whitespace-nowrap">
-                  {selectedEmployee.bank_name}
-                  {selectedEmployee.bank_account_type ? ` · ${selectedEmployee.bank_account_type}` : ""}
-                  {selectedEmployee.bank_account_number ? ` · ${selectedEmployee.bank_account_number}` : ""}
-                </span>
-              ) : (
-                <span>Sin banco</span>
-              )}
-            </span>
+            <span className="ml-2 text-slate-500">· {selectedEmployee.full_name}</span>
           )}
         </div>
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="primary"
+              disabled={saving || (pendingCount === 0 && modifiedCount === 0)}
+              onClick={onBulkSave}
+            >
+              Guardar cambios
+            </Button>
+            <div className="text-xs text-slate-500">
+              {pendingCount > 0 && <span className="mr-2">Pendientes: {pendingCount}</span>}
+              {modifiedCount > 0 && <span>Modificados: {modifiedCount}</span>}
+            </div>
+          </div>
+        )}
       </div>
 
       {canEdit && selectedEmployee?.id && (
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-slate-500">
-            Ingresa las horas en formato <strong>HH:MM</strong> (24 horas). Déjalo en blanco para marcarlo como pendiente. Si limpias un registro existente, se eliminará al guardar.
-          </p>
-          <Button
-            type="button"
-            disabled={saving || (!modifiedCount && pendingCount === 0)}
-            onClick={onBulkSave}
-          >
-            {saving ? "Guardando..." : "Guardar cambios"}
-          </Button>
+          {/* ...existing code... */}
         </div>
       )}
 
-      <div className="overflow-x-auto muted-scrollbar">
-        <table className="min-w-full text-sm">
-          <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+      <div className="overflow-x-auto muted-scrollbar transform-gpu">
+        <table className="min-w-full text-sm will-change-scroll">
+          <thead className="bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] sticky top-0 z-10">
             <tr>
               <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Fecha</th>
-              <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Horas (HH:MM)</th>
-              <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Horas extra (HH:MM)</th>
-              <th className="px-3 py-2 text-left font-semibold">Horas pagadas adicional (HH:MM)</th>
-              <th className="px-3 py-2 text-left font-semibold">Comentario</th>
-              <th className="px-3 py-2 text-left font-semibold">Estado</th>
-              {canEdit && <th className="px-3 py-2 text-right font-semibold">Acciones</th>}
+              <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Entrada</th>
+              <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Salida</th>
+              <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Trabajadas</th>
+              <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Extras</th>
+              <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Estado</th>
+              <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {loadingDetail && (
               <tr>
-                <td colSpan={canEdit ? 7 : 6} className="px-4 py-6 text-center text-[var(--brand-primary)]">
+                <td colSpan={7} className="px-4 py-6 text-center text-[var(--brand-primary)]">
                   Cargando detalle...
                 </td>
               </tr>
@@ -137,69 +211,217 @@ export default function TimesheetDetailTable({
                         ? "text-amber-600"
                         : "text-slate-600";
 
+                // Calcular duración del turno
+                const worked = calculateWorkedHours(row.entrada, row.salida);
+                const [h, m] = worked.split(":").map(Number);
+                const totalHours = h + m / 60;
+                let showWarning = false;
+                let warningText = "";
+                if (row.entrada && row.salida) {
+                  if (totalHours < 3) {
+                    showWarning = true;
+                    warningText = "Turno muy corto (menos de 3 horas)";
+                  } else if (totalHours > 10) {
+                    showWarning = true;
+                    warningText = "Turno muy largo (más de 10 horas)";
+                  }
+                }
+                const isSunday = dayjs(row.date).day() === 0;
+                const canEditRow = canEdit && !isSunday;
+
+                // Unificado: un solo "!" para warning y comentario
+                const hasComment = Boolean(row.comment?.trim());
+                const showBang = showWarning || hasComment;
+                const bangColor = showWarning
+                  ? "text-red-600 hover:text-red-800"
+                  : "text-[var(--brand-primary)] hover:text-[var(--brand-primary)]/80";
+                const tooltipParts: string[] = [];
+                if (showWarning && warningText) tooltipParts.push(warningText);
+                if (hasComment) tooltipParts.push(`Comentario: ${row.comment.trim()}`);
+                const bangTitle = tooltipParts.join(" — ");
+
+                const isMarkedNotWorked = notWorkedDays.has(row.date);
                 return (
-                  <tr key={row.date} className="odd:bg-slate-50/60">
-                    <td className="px-3 py-2 text-slate-600">{dayjs(row.date).format("DD-MM-YYYY")}</td>
+                  <tr
+                    key={row.date}
+                    className={`odd:bg-slate-50/60 hover:bg-slate-100/80 transition-colors ${
+                      isMarkedNotWorked ? "opacity-60 pointer-events-none" : ""
+                    }`}
+                  >
+                    {/* Fecha */}
+                    <td className="px-3 py-2 text-slate-600 whitespace-nowrap">
+                      {formatDateLabel(row.date)}
+                      {(() => {
+                        const dayIdx = dayjs(row.date).day();
+                        const labels = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+                        const isSun = dayIdx === 0;
+                        return (
+                          <span
+                            className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                              isSun ? "bg-slate-100 text-slate-400" : "bg-slate-50 text-slate-500"
+                            }`}
+                          >
+                            {labels[dayIdx]}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    {/* Entrada */}
                     <td className="px-3 py-2">
                       <Input
                         type="text"
-                        placeholder="00:00"
-                        value={row.worked}
-                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => onRowChange(index, "worked", event.target.value)}
-                        className="w-full"
-                        disabled={!canEdit}
+                        value={row.entrada}
+                        onChange={(e) => onRowChange(index, "entrada", formatTimeInput(e.target.value))}
+                        placeholder="HH:MM"
+                        className="w-28"
+                        disabled={!canEditRow}
                       />
                     </td>
+                    {/* Salida */}
                     <td className="px-3 py-2">
                       <Input
                         type="text"
-                        placeholder="00:00"
-                        value={row.overtime}
-                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => onRowChange(index, "overtime", event.target.value)}
-                        className="w-full"
-                        disabled={!canEdit}
+                        value={row.salida}
+                        onChange={(e) => onRowChange(index, "salida", formatTimeInput(e.target.value))}
+                        placeholder="HH:MM"
+                        className="w-28"
+                        disabled={!canEditRow}
                       />
                     </td>
+                    {/* Trabajadas */}
+                    <td className="px-3 py-2 text-slate-700 tabular-nums">{worked}</td>
+                    {/* Extras */}
                     <td className="px-3 py-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        value={row.extra}
-                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => onRowChange(index, "extra", event.target.value)}
-                        className="w-full"
-                        disabled={!canEdit}
-                      />
+                      {(!row.overtime?.trim() && !openOvertimeEditors.has(row.date)) ? (
+                        canEditRow ? (
+                          <button
+                            type="button"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/60 bg-white/70 text-[var(--brand-primary)] shadow hover:bg-white/90"
+                            aria-label="Agregar horas extra"
+                            title="Agregar horas extra"
+                            onClick={() => setOpenOvertimeEditors(prev => {
+                              const next = new Set(prev);
+                              next.add(row.date);
+                              return next;
+                            })}
+                          >
+                            +
+                          </button>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )
+                      ) : (
+                        <Input
+                          type="text"
+                          value={row.overtime}
+                          onChange={(e) => onRowChange(index, "overtime", e.target.value)}
+                          placeholder="HH:MM"
+                          className="w-28"
+                          disabled={!canEditRow}
+                          onBlur={() => {
+                            const value = (row.overtime || "").trim();
+                            if (!value) {
+                              setOpenOvertimeEditors(prev => {
+                                const next = new Set(prev);
+                                next.delete(row.date);
+                                return next;
+                              });
+                            }
+                          }}
+                        />
+                      )}
                     </td>
-                    <td className="px-3 py-2">
-                      <textarea
-                        rows={1}
-                        value={row.comment}
-                        onChange={(event) => onRowChange(index, "comment", event.target.value)}
-                        className="w-full rounded border px-2 py-1 text-sm"
-                        disabled={!canEdit}
-                      />
-                    </td>
-                    <td className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide ${statusColor}`}>
+                    {/* Estado + indicador unificado "!" */}
+                    <td className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide ${statusColor} relative`}>
                       {status}
+                      {showBang && (
+                        <span title={bangTitle} className={`ml-2 font-bold cursor-help ${bangColor}`}>
+                          !
+                        </span>
+                      )}
                     </td>
-                    {canEdit && (
-                      <td className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">
-                        <Button variant="secondary" onClick={() => onResetRow(index)} className="mr-3">
-                          Revertir
-                        </Button>
-                        {row.entryId && (
-                          <Button variant="secondary" onClick={() => onRemoveEntry(row)}>
-                            Eliminar
-                          </Button>
-                        )}
-                      </td>
-                    )}
+                    {/* Acciones (menú de tres puntos) */}
+                    <td className="px-3 py-2">
+                      {canEditRow ? (
+                        <div className="relative inline-block text-left">
+                          <button
+                            type="button"
+                            className="dropdown-trigger inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/60 bg-white/70 text-slate-500 shadow hover:bg-white/90 hover:text-slate-700"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            onClick={() => toggleMenu(`menu-${row.date}`)}
+                            title="Acciones"
+                          >
+                            ⋯
+                          </button>
+                          <div
+                            id={`menu-${row.date}`}
+                            className="dropdown-menu hidden absolute right-0 z-20 mt-2 w-44 origin-top-right rounded-xl bg-white p-1 shadow-xl ring-1 ring-black/5"
+                            role="menu"
+                          >
+                              <button
+                                className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                                role="menuitem"
+                                onClick={() => {
+                                  toggleMenu(`menu-${row.date}`);
+                                  setCommentPreview({ date: row.date, text: row.comment || "(Sin comentario)" });
+                                }}
+                              >
+                                Ver comentario
+                              </button>
+                            {dirty && (
+                              <button
+                                className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                                role="menuitem"
+                                onClick={() => {
+                                  onResetRow(index);
+                                  toggleMenu(`menu-${row.date}`);
+                                }}
+                              >
+                                Deshacer cambios
+                              </button>
+                            )}
+                              <button
+                                className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                                role="menuitem"
+                                onClick={() => {
+                                  toggleMenu(`menu-${row.date}`);
+                                  setNotWorkedDays(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(row.date)) next.delete(row.date); else next.add(row.date);
+                                    return next;
+                                  });
+                                }}
+                              >
+                                {isMarkedNotWorked ? "Marcar como trabajado" : "Día no trabajado"}
+                              </button>
+                            {row.entryId && (
+                              <button
+                                className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                                role="menuitem"
+                                onClick={() => {
+                                  toggleMenu(`menu-${row.date}`);
+                                  onRemoveEntry(row);
+                                }}
+                              >
+                                Eliminar registro
+                              </button>
+                            )}
+                            {!dirty && !row.entryId && (
+                              <div className="px-3 py-2 text-xs text-slate-400">Sin acciones</div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
             {!loadingDetail && !bulkRows.length && (
               <tr>
-                <td colSpan={canEdit ? 7 : 6} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                   {employeeOptions.length
                     ? "Selecciona un trabajador para ver o editar sus horas."
                     : "Registra a trabajadores activos para comenzar a cargar horas."}
@@ -209,6 +431,14 @@ export default function TimesheetDetailTable({
           </tbody>
         </table>
       </div>
+      {/* Modal para ver comentario */}
+      <Modal
+        isOpen={Boolean(commentPreview)}
+        onClose={() => setCommentPreview(null)}
+        title={`Comentario · ${commentPreview ? formatDateLabel(commentPreview.date) : ""}`}
+      >
+        <p className="whitespace-pre-wrap text-slate-700">{commentPreview?.text}</p>
+      </Modal>
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { registerInventoryRoutes } from "./routes/inventory.js";
 import { registerRoleRoutes } from "./routes/roles.js";
 import { registerLoanRoutes } from "./routes/loans.js";
 import { registerServiceRoutes } from "./routes/services.js";
+import { registerAssetRoutes } from "./routes/assets.js";
 
 const app = express();
 
@@ -47,6 +48,7 @@ registerRoleRoutes(app);
 registerLoanRoutes(app);
 registerServiceRoutes(app);
 app.use("/api/supplies", suppliesRouter);
+registerAssetRoutes(app);
 
 app.get("/api/health", async (_req, res) => {
   console.info("[steps][health] Step 0: /api/health recibido");
@@ -85,7 +87,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Carpeta con el build del cliente (Vite)
-const clientDir = path.resolve(__dirname, "../client");
+const clientDir = path.resolve(__dirname, "../dist/client");
 
 // Archivos estáticos de la SPA en la raíz
 app.use(express.static(clientDir, { index: false }));

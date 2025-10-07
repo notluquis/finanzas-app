@@ -64,7 +64,8 @@ export async function bulkUpsertTimesheets(
   employeeId: number,
   entries: Array<{
     work_date: string;
-    worked_minutes: number;
+    start_time: string | null;
+    end_time: string | null;
     overtime_minutes: number;
     extra_amount: number;
     comment: string | null;

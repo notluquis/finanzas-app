@@ -34,6 +34,27 @@ const monthParamSchema = z.object({
 });
 
 export function registerTimesheetRoutes(app: express.Express) {
+  // Endpoint para obtener meses registrados
+  app.get("/api/timesheets/months", asyncHandler(async (_req, res) => {
+    const pool = getPool();
+    // Nota: la tabla correcta es employee_timesheets
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT DISTINCT DATE_FORMAT(work_date, '%Y-%m') as month FROM employee_timesheets ORDER BY month DESC`
+    );
+    let months = rows.map(r => r.month as string).filter(Boolean);
+
+    // Fallback: si no hay datos aún, devolver últimos 6 meses incluyendo el actual
+    if (!months.length) {
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      months = Array.from({ length: 6 }).map((_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+      });
+    }
+
+    res.json({ status: "ok", months });
+  }));
   app.get(
     "/api/timesheets",
     authenticate,
@@ -150,11 +171,10 @@ export function registerTimesheetRoutes(app: express.Express) {
         await upsertTimesheetEntry({
           employee_id: parsed.employee_id,
           work_date: entry.work_date,
-          worked_minutes: entry.worked_minutes,
+          start_time: entry.start_time ?? null,
+          end_time: entry.end_time ?? null,
           overtime_minutes: entry.overtime_minutes ?? 0,
           extra_amount: entry.extra_amount ?? 0,
-          start_time: null,
-          end_time: null,
           comment: entry.comment ?? null,
         });
       }
@@ -306,7 +326,7 @@ function buildEmployeeSummary(
   }
 ) {
   const hourlyRate = employee?.hourly_rate ?? 0;
-  const overtimeRate = employee?.overtime_rate ?? hourlyRate * 1.5;
+  const overtimeRate = employee?.overtime_rate ?? 0;
   const retentionRate = employee?.retention_rate ?? 0;
   const basePay = roundCurrency((data.workedMinutes / 60) * hourlyRate);
   const overtimePay = roundCurrency((data.overtimeMinutes / 60) * overtimeRate);
@@ -338,11 +358,13 @@ function buildEmployeeSummary(
 
 function computePayDate(role: string, periodStart: string) {
   const startDate = new Date(periodStart);
-  const target = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1);
+  const nextMonthFirstDay = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1);
   if (role.toUpperCase().includes("ENFER")) {
-    return formatDate(getNthBusinessDay(target, 5));
+    // Enfermeros: 5to día hábil del mes siguiente
+    return formatDate(getNthBusinessDay(nextMonthFirstDay, 5));
   }
-  return formatDate(new Date(target.getFullYear(), target.getMonth(), 5));
+  // Otros: día 5 calendario del mes siguiente
+  return formatDate(new Date(nextMonthFirstDay.getFullYear(), nextMonthFirstDay.getMonth(), 5));
 }
 
 function getNthBusinessDay(base: Date, n: number) {

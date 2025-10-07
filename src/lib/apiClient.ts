@@ -86,7 +86,14 @@ async function request<T>(method: string, url: string, options?: RequestOptions)
     throw new Error(errorData.message || "Ocurrió un error inesperado.");
   }
 
-  return response.json();
+  const data = await response.json();
+  try {
+    // Disparar evento global para que ConnectionIndicator reinicie su temporizador
+    window.dispatchEvent(new CustomEvent("api-success", { detail: { method, url, status: response.status } }));
+  } catch {
+    // noop (SSR o ambientes sin window)
+  }
+  return data;
 }
 
 export const apiClient = {

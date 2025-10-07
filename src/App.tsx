@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import React from "react";
 import { useAuth } from "./context/AuthContext";
 import { useSettings } from "./context/SettingsContext";
 import CollapsibleNavSection from "./components/CollapsibleNavSection";
@@ -98,9 +99,66 @@ export default function App() {
   const displayName = user?.name || (user?.email?.split("@")[0] ?? "");
   const capitalizedName = displayName.split(" ")[0].charAt(0).toUpperCase() + displayName.split(" ")[0].slice(1).toLowerCase();
 
+
+  // Sidebar state: visible/hidden
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+
+  // Detect if mobile/tablet (md breakpoint)
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(!window.matchMedia("(min-width: 768px)").matches);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Close sidebar on route change (if overlay)
+  React.useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [location.pathname]);
+
+  // Toggle sidebar (hamburguesa)
+  const toggleSidebar = () => setSidebarOpen((open) => !open);
+
   return (
     <div className="layout-container relative mx-auto flex min-h-screen max-w-[1440px] gap-6 px-4 py-6 text-slate-900 sm:px-6 lg:px-10">
-      <aside className="glass-panel glass-underlay-gradient flex w-64 flex-shrink-0 flex-col overflow-hidden rounded-3xl p-5 text-sm text-slate-700 shadow-xl">
+
+      {/* Hamburger button: always visible */}
+      <button
+        className="fixed left-4 top-6 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 shadow-lg"
+        onClick={toggleSidebar}
+        aria-label={sidebarOpen ? "Cerrar menú" : "Abrir menú"}
+      >
+        {sidebarOpen ? (
+          <svg className="h-6 w-6 text-slate-700" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg className="h-6 w-6 text-slate-700" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        )}
+      </button>
+
+      {/* Overlay for mobile/tablet when sidebar is open */}
+      {isMobile && sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 transition-opacity duration-300"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+
+      {/* Sidebar: animated, overlay on mobile, collapsible on desktop */}
+      <aside
+        className={`glass-panel glass-underlay-gradient flex w-64 flex-shrink-0 flex-col overflow-hidden rounded-3xl p-5 text-sm text-slate-700 shadow-xl
+          fixed inset-y-0 left-0 z-50 transition-transform duration-300
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          md:static md:translate-x-0 md:z-auto md:rounded-3xl md:p-5 md:shadow-xl
+          ${!sidebarOpen && !isMobile ? "hidden" : ""}`}
+        style={{ maxWidth: "100vw" }}
+      >
         <div className="flex h-16 items-center justify-center rounded-2xl border border-white/40 bg-white/60 px-3 shadow-inner">
           <img src={settings.logoUrl} alt="Logo" className="h-10" />
         </div>
@@ -118,6 +176,9 @@ export default function App() {
                         : "border-transparent text-slate-600 hover:border-white/40 hover:bg-white/35 hover:text-[var(--brand-primary)]"
                     }`
                   }
+                  onClick={() => {
+                    if (isMobile) setSidebarOpen(false);
+                  }}
                 >
                   {item.label}
                 </NavLink>
@@ -127,6 +188,7 @@ export default function App() {
         </nav>
       </aside>
 
+      {/* Main content */}
       <div className="layout-container flex flex-1 flex-col gap-6 min-w-0">{/* min-w-0 permite que se encoja */}
         <header className="glass-panel glass-panel--tinted flex items-center justify-between rounded-3xl px-6 py-4">
           <h1 className="text-xl font-semibold text-slate-800 drop-shadow-sm">{title}</h1>

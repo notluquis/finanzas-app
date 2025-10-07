@@ -61,121 +61,101 @@ export function ConnectionIndicator() {
 
   useEffect(() => {
     let cancelled = false;
-    let intervalId: number | null = null;
+    let timeoutId: number | null = null;
+    let retryCount = 0;
+    let delay = 120000; // 2 minutes
 
-    async function fetchHealth() {
+    async function fetchHealthWithBackoff() {
       const controller = new AbortController();
       const requestTimeoutId = window.setTimeout(() => controller.abort(), 5000);
-      
       try {
-        console.debug("[steps][health] Step 1: consultar /api/health");
         const res = await fetch("/api/health", {
           credentials: "include",
           signal: controller.signal,
         });
         const fetchedAt = new Date();
-        console.debug("[steps][health] Step 2: respuesta /api/health", res.status);
-        
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const payload = (await res.json()) as HealthResponse;
         if (cancelled) return;
-
-        console.debug("[steps][health] Step 3: payload health", payload.status);
-        
-        // Marcar que hemos conectado al menos una vez
         if (!hasConnectedOnce) {
           setHasConnectedOnce(true);
-          console.log("\u2705 Servidor conectado exitosamente");
+          retryCount = 0;
+          delay = 120000;
         }
-        
         const details: string[] = [];
         if (payload.checks?.db) {
           const dbCheck = payload.checks.db;
           if (dbCheck.status === "error") {
             details.push(dbCheck.message ?? "No se pudo contactar la base de datos");
-            console.warn("[steps][health] DB check falló", dbCheck.message);
           } else if (typeof dbCheck.latency === "number") {
             details.push(`Base de datos OK · ${dbCheck.latency} ms`);
-            console.debug("[steps][health] DB latency", dbCheck.latency);
           } else {
             details.push("Base de datos OK");
           }
         }
-
         if (payload.status === "ok") {
-          setState({
-            level: "online",
-            fetchedAt,
-            message: STATUS_COPY.online.description,
-            details,
-            retryCount: 0,
-          });
+          setState({ level: "online", fetchedAt, message: STATUS_COPY.online.description, details, retryCount: 0 });
+          retryCount = 0;
+          delay = 120000;
         } else if (payload.status === "degraded") {
-          setState({
-            level: "degraded",
-            fetchedAt,
-            message: STATUS_COPY.degraded.description,
-            details,
-            retryCount: 0,
-          });
+          setState({ level: "degraded", fetchedAt, message: STATUS_COPY.degraded.description, details, retryCount: 0 });
+          retryCount = 0;
+          delay = 120000;
         } else {
-          setState({
-            level: "offline",
-            fetchedAt,
-            message: STATUS_COPY.offline.description,
-            details,
-            retryCount: 0,
-          });
+          setState({ level: "offline", fetchedAt, message: STATUS_COPY.offline.description, details, retryCount: 0 });
+          retryCount++;
+          delay = Math.min(300000, 120000 * Math.pow(2, retryCount)); // up to 5 min
         }
       } catch (error) {
         if (cancelled) return;
-        
         const fetchedAt = new Date();
-        console.error("[steps][health] Step error: fallo en health", error);
-        
         setState(prevState => {
           const newRetryCount = prevState.retryCount + 1;
-          const isStarting = !hasConnectedOnce && newRetryCount < 4; // Reducido a 20 segundos
-          
-          const detailMessage =
-            error instanceof Error
-              ? error.message === "The user aborted a request."
-                ? "Conexión agotada (timeout)"
-                : error.message
-              : "Error desconocido";
-
+          const isStarting = !hasConnectedOnce && newRetryCount < 4;
+          const detailMessage = error instanceof Error
+            ? error.message === "The user aborted a request."
+              ? "Conexión agotada (timeout)"
+              : error.message
+            : "Error desconocido";
           return {
             level: isStarting ? "starting" : "offline",
             fetchedAt,
             message: isStarting ? STATUS_COPY.starting.description : STATUS_COPY.offline.description,
-            details: isStarting 
-              ? [`Intento ${newRetryCount}/4: ${detailMessage}`]
-              : [detailMessage],
+            details: isStarting ? [`Intento ${newRetryCount}/4: ${detailMessage}`] : [detailMessage],
             retryCount: newRetryCount,
           };
         });
-        
-        // Solo mostrar si es un error persistente después de varios intentos
-        if (!hasConnectedOnce && state.retryCount > 2) {
-          setOpen(true);
-        }
+        retryCount++;
+        delay = Math.min(300000, 120000 * Math.pow(2, retryCount));
+        if (!hasConnectedOnce && retryCount > 2) setOpen(true);
       } finally {
         window.clearTimeout(requestTimeoutId);
-        console.debug("[steps][health] Step final: actualización completa");
+      }
+      if (!cancelled) {
+        timeoutId = window.setTimeout(fetchHealthWithBackoff, delay);
       }
     }
 
-    fetchHealth();
-    intervalId = window.setInterval(fetchHealth, 5000);
+    // Initial delay before first health check
+    timeoutId = window.setTimeout(fetchHealthWithBackoff, 2000);
+
+    // Listen for global API success events to reset health check
+    function resetHealthCheck() {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      retryCount = 0;
+      delay = 120000;
+      timeoutId = window.setTimeout(fetchHealthWithBackoff, 2000);
+    }
+    window.addEventListener("api-success", resetHealthCheck);
+    window.addEventListener("beforeunload", resetHealthCheck);
 
     return () => {
       cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
+      if (timeoutId) window.clearTimeout(timeoutId);
+      window.removeEventListener("api-success", resetHealthCheck);
+      window.removeEventListener("beforeunload", resetHealthCheck);
     };
-  }, [hasConnectedOnce, state.retryCount]);
+  }, [hasConnectedOnce]);
 
   // Auto-cerrar después de un tiempo si no está online
   useEffect(() => {

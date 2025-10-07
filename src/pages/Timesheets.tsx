@@ -15,21 +15,34 @@ import TimesheetSummaryTable from "../features/timesheets/components/TimesheetSu
 import TimesheetDetailTable from "../features/timesheets/components/TimesheetDetailTable";
 import Alert from "../components/Alert";
 import Input from "../components/Input";
+import { useMonths } from "../features/timesheets/hooks/useMonths";
+
+import TimesheetExportPDF from "../features/timesheets/components/TimesheetExportPDF";
 
 const EMPTY_BULK_ROW = {
   date: "",
-  worked: "",
-  overtime: "",
-  extra: "",
+  entrada: "",     // Hora de entrada (ej: "09:00")
+  salida: "",      // Hora de salida (ej: "18:00")  
+  overtime: "",    // Horas extra (ej: "02:00")
   comment: "",
   entryId: null as number | null,
 };
 
 export default function TimesheetsPage() {
+  // Utility to ensure month is always YYYY-MM
+  function formatMonthString(m: string): string {
+    if (/^[0-9]{4}-[0-9]{2}$/.test(m)) return m;
+    // Try to parse with dayjs
+    const d = dayjs(m, ["YYYY-MM", "YYYY/MM", "MM/YYYY", "YYYY-MM-DD", "DD/MM/YYYY"]);
+    if (d.isValid()) return d.format("YYYY-MM");
+    return dayjs().format("YYYY-MM"); // fallback to current month
+  }
   const { hasRole } = useAuth();
   const canEdit = hasRole("GOD", "ADMIN", "ANALYST");
 
-  const [month, setMonth] = useState(dayjs().subtract(1, "month").format("YYYY-MM"));
+  const { months, loading: loadingMonths, error: errorMonths } = useMonths();
+  const [month, setMonth] = useState<string>("");
+  const [visibleCount, setVisibleCount] = useState(5);
   const [summary, setSummary] = useState<{ employees: TimesheetSummaryRow[]; totals: any } | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
@@ -46,7 +59,13 @@ export default function TimesheetsPage() {
   }, []);
 
   useEffect(() => {
-    loadSummary();
+    if (months.length && !month) {
+      setMonth(months[0]);
+    }
+  }, [months]);
+
+  useEffect(() => {
+    if (month) loadSummary();
   }, [month]);
 
   const monthLabel = useMemo(() => {
@@ -66,6 +85,11 @@ export default function TimesheetsPage() {
         : null,
     [employees, selectedEmployeeId]
   );
+
+  const employeeSummaryRow = useMemo(() => {
+    if (!summary || !selectedEmployee) return null;
+    return summary.employees.find((e) => e.employeeId === selectedEmployee.id) ?? null;
+  }, [summary, selectedEmployee]);
 
   useEffect(() => {
     if (selectedEmployeeId) {
@@ -104,9 +128,14 @@ export default function TimesheetsPage() {
     setError(null);
     setInfo(null);
     try {
-      const data = await fetchTimesheetSummary(month);
+      const formattedMonth = formatMonthString(month);
+      const data = await fetchTimesheetSummary(formattedMonth);
       setSummary({ employees: data.employees, totals: data.totals });
+      // Preferir seleccionar un trabajador que tenga datos en el mes
+      const hasDataIds = new Set(data.employees.map(e => e.employeeId));
       if (!selectedEmployeeId && data.employees.length) {
+        setSelectedEmployeeId(data.employees[0].employeeId);
+      } else if (selectedEmployeeId && !hasDataIds.has(selectedEmployeeId) && data.employees.length) {
         setSelectedEmployeeId(data.employees[0].employeeId);
       }
     } catch (err) {
@@ -122,8 +151,9 @@ export default function TimesheetsPage() {
     setLoadingDetail(true);
     setError(null);
     try {
-      const data = await fetchTimesheetDetail(employeeId, month);
-      const rows = buildBulkRows(month, data.entries, selectedEmployee?.hourly_rate ?? 0);
+      const formattedMonth = formatMonthString(month);
+      const data = await fetchTimesheetDetail(employeeId, formattedMonth);
+      const rows = buildBulkRows(formattedMonth, data.entries, selectedEmployee?.hourly_rate ?? 0);
       setBulkRows(rows);
       setInitialRows(rows);
     } catch (err) {
@@ -138,8 +168,8 @@ export default function TimesheetsPage() {
 
   function handleRowChange(index: number, field: keyof Omit<BulkRow, "date" | "entryId">, value: string) {
     setBulkRows((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
+      if (prev[index][field] === value) return prev;
+      const next = prev.map((row, i) => (i === index ? { ...row, [field]: value } : row));
       return next;
     });
     setInfo(null);
@@ -185,7 +215,8 @@ export default function TimesheetsPage() {
 
     const entries: Array<{
       work_date: string;
-      worked_minutes: number;
+      start_time: string | null;
+      end_time: string | null;
       overtime_minutes: number;
       extra_amount: number;
       comment: string | null;
@@ -197,9 +228,13 @@ export default function TimesheetsPage() {
       const initial = initialRows[index];
       if (!isRowDirty(row, initial)) continue;
 
-      const worked = parseDuration(row.worked);
-      if (worked === null) {
-        setError(`Horas inválidas en ${formatDateLabel(row.date)}. Usa formato HH:MM (24 hrs).`);
+      // Validar entrada/salida si están presentes
+      if (row.entrada && !/^[0-9]{1,2}:[0-9]{2}$/.test(row.entrada)) {
+        setError(`Hora de entrada inválida en ${formatDateLabel(row.date)}. Usa formato HH:MM (24 hrs).`);
+        return;
+      }
+      if (row.salida && !/^[0-9]{1,2}:[0-9]{2}$/.test(row.salida)) {
+        setError(`Hora de salida inválida en ${formatDateLabel(row.date)}. Usa formato HH:MM (24 hrs).`);
         return;
       }
 
@@ -209,18 +244,8 @@ export default function TimesheetsPage() {
         return;
       }
 
-      const extraMinutes = parseDuration(row.extra);
-      if (extraMinutes === null) {
-        setError(`Horas extra pagadas inválidas en ${formatDateLabel(row.date)}. Usa HH:MM.`);
-        return;
-      }
-      if (extraMinutes > 0 && (!selectedEmployee || !selectedEmployee.hourly_rate)) {
-        setError("Define un valor hora para el trabajador antes de registrar horas pagadas adicionales.");
-        return;
-      }
-
       const comment = row.comment.trim() ? row.comment.trim() : null;
-      const hasContent = worked > 0 || overtime > 0 || extraMinutes > 0 || Boolean(comment);
+      const hasContent = Boolean(row.entrada) || Boolean(row.salida) || overtime > 0 || Boolean(comment);
 
       if (!hasContent && row.entryId) {
         removeIds.push(row.entryId);
@@ -231,12 +256,12 @@ export default function TimesheetsPage() {
         continue;
       }
 
-      const extraAmount = computeExtraAmount(extraMinutes, selectedEmployee?.hourly_rate ?? 0);
       entries.push({
         work_date: row.date,
-        worked_minutes: worked,
+        start_time: row.entrada || null,
+        end_time: row.salida || null,
         overtime_minutes: overtime,
-        extra_amount: extraAmount,
+        extra_amount: 0, // Por ahora no manejamos extra_amount separado
         comment,
       });
     }
@@ -270,17 +295,44 @@ export default function TimesheetsPage() {
             resumen y completa la tabla diaria sin volver a guardar cada fila.
           </p>
         </div>
-        <Input
-          label="Periodo"
-          type="month"
-          value={month}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            setMonth(event.target.value);
-            setInfo(null);
-          }}
-          className="w-fit"
-        />
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold text-slate-500">Periodo</label>
+          <select
+            value={month}
+            onChange={e => { setMonth(e.target.value); setInfo(null); }}
+            className="rounded border px-3 py-2 text-sm bg-white"
+            disabled={loadingMonths}
+          >
+            {months.slice(0, visibleCount).map(m => (
+              <option key={m} value={m}>{dayjs(m + "-01").format("MMMM YYYY")}</option>
+            ))}
+          </select>
+          {months.length > visibleCount && (
+            <button
+              type="button"
+              className="text-xs text-[var(--brand-primary)] underline mt-1"
+              onClick={() => setVisibleCount(c => c + 4)}
+            >
+              Ver más meses...
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Botón de exportar PDF */}
+      {selectedEmployee && (
+        <div className="flex justify-end">
+          <TimesheetExportPDF
+            logoUrl={"/logo.png"}
+            employee={selectedEmployee}
+            summary={employeeSummaryRow || null}
+            bulkRows={bulkRows}
+            columns={["date", "entrada", "salida", "worked", "overtime"]}
+            monthLabel={monthLabel}
+            monthRaw={month}
+          />
+        </div>
+      )}
 
       {error && <Alert variant="error">{error}</Alert>}
       {info && <Alert variant="success">{info}</Alert>}

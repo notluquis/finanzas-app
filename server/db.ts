@@ -2066,19 +2066,36 @@ export type TimesheetEntry = {
   updated_at: string;
 };
 
+// Helper function to convert HH:MM to minutes
+function timeToMinutes(time: string): number | null {
+  if (!/^[0-9]{1,2}:[0-9]{2}(:[0-9]{2})?$/.test(time)) return null;
+  const [hours, minutes] = time.split(':').map(Number);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes >= 60) return null;
+  return hours * 60 + minutes;
+}
+
 export async function upsertTimesheetEntry(entry: {
   employee_id: number;
   work_date: string;
-  worked_minutes: number;
-  overtime_minutes: number;
-  extra_amount: number;
   start_time?: string | null;
   end_time?: string | null;
+  overtime_minutes: number;
+  extra_amount: number;
   comment?: string | null;
 }) {
   const pool = getPool();
   const startTime = entry.start_time ?? null;
   const endTime = entry.end_time ?? null;
+  
+  // Calcular worked_minutes desde start_time y end_time
+  let workedMinutes = 0;
+  if (startTime && endTime) {
+    const start = timeToMinutes(startTime);
+    const end = timeToMinutes(endTime);
+    if (start !== null && end !== null) {
+      workedMinutes = end >= start ? end - start : (24 * 60) + (end - start);
+    }
+  }
 
   const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO employee_timesheets
@@ -2097,7 +2114,7 @@ export async function upsertTimesheetEntry(entry: {
       entry.work_date,
       startTime,
       endTime,
-      entry.worked_minutes,
+      workedMinutes,
       entry.overtime_minutes,
       entry.extra_amount,
       entry.comment ?? null,
