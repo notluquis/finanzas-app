@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { coerceAmount } from "../lib/format";
 import { useAuth } from "../context/AuthContext";
@@ -13,30 +13,14 @@ import {
 } from "../features/transactions/components/TransactionsColumnToggles";
 import { TransactionsTable } from "../features/transactions/components/TransactionsTable";
 import { COLUMN_DEFS, type ColumnKey } from "../features/transactions/constants";
-import type {
-  DbMovement,
-  Filters,
-  LedgerRow,
-} from "../features/transactions/types";
+import type { Filters, LedgerRow } from "../features/transactions/types";
+import { useTransactionsQuery } from "../features/transactions/hooks/useTransactionsQuery";
 
 const DEFAULT_PAGE_SIZE = 50;
 
-type ApiResponse = {
-  status: "ok" | "error";
-  data: DbMovement[];
-  hasAmounts?: boolean;
-  total?: number;
-  page?: number;
-  pageSize?: number;
-  message?: string;
-};
-
 export default function TransactionsMovements() {
-  const [rows, setRows] = useState<DbMovement[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [initialBalance, setInitialBalance] = useState<string>("0");
-  const [filters, setFilters] = useState<Filters>({
+  const [draftFilters, setDraftFilters] = useState<Filters>({
     from: dayjs().subtract(10, "day").format("YYYY-MM-DD"),
     to: dayjs().format("YYYY-MM-DD"),
     description: "",
@@ -46,13 +30,12 @@ export default function TransactionsMovements() {
     direction: "",
     includeAmounts: false,
   });
-  const [hasAmounts, setHasAmounts] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState<Filters>(draftFilters);
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
     () => new Set(COLUMN_DEFS.map((column) => column.key))
   );
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [total, setTotal] = useState(0);
 
   const quickMonths = useMemo(() => {
     const months: Array<{ value: string; label: string; from: string; to: string }> = [];
@@ -67,9 +50,11 @@ export default function TransactionsMovements() {
   }, []);
 
   const quickRange = useMemo(() => {
-    const match = quickMonths.find(({ from: start, to: end }) => start === filters.from && end === filters.to);
+    const match = quickMonths.find(
+      ({ from: start, to: end }) => start === draftFilters.from && end === draftFilters.to
+    );
     return match ? match.value : "custom";
-  }, [quickMonths, filters.from, filters.to]);
+  }, [quickMonths, draftFilters.from, draftFilters.to]);
 
   const { hasRole } = useAuth();
   const { settings } = useSettings();
@@ -81,14 +66,22 @@ export default function TransactionsMovements() {
     [initialBalance]
   );
 
-  useEffect(() => {
-    if (canView) {
-      refresh(filters, 1, pageSize);
-    } else {
-      setRows([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canView]);
+  const queryParams = useMemo(
+    () => ({
+      filters: appliedFilters,
+      page,
+      pageSize,
+    }),
+    [appliedFilters, page, pageSize]
+  );
+
+  const transactionsQuery = useTransactionsQuery(queryParams, canView);
+
+  const rows = transactionsQuery.data?.data ?? [];
+  const hasAmounts = Boolean(transactionsQuery.data?.hasAmounts);
+  const total = transactionsQuery.data?.total ?? rows.length;
+  const loading = transactionsQuery.isPending || transactionsQuery.isFetching;
+  const error = transactionsQuery.error?.message ?? null;
 
   const ledger = useMemo<LedgerRow[]>(() => {
     let balance = initialBalanceNumber;
@@ -117,67 +110,8 @@ export default function TransactionsMovements() {
     return chronological.reverse();
   }, [rows, initialBalanceNumber, hasAmounts]);
 
-  const refresh = useCallback(
-    async (next: Filters, nextPage = page, nextPageSize = pageSize) => {
-      if (!canView) {
-        setRows([]);
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-      try {
-        logger.info("[movements] fetch:start", {
-          filters: next,
-          page: nextPage,
-          pageSize: nextPageSize,
-        });
-        const params = new URLSearchParams();
-        params.set("page", String(nextPage));
-        params.set("pageSize", String(nextPageSize));
-        if (next.from) params.set("from", next.from);
-        if (next.to) params.set("to", next.to);
-        if (next.description) params.set("description", next.description);
-        if (next.sourceId) params.set("sourceId", next.sourceId);
-        if (next.origin) params.set("origin", next.origin);
-        if (next.destination) params.set("destination", next.destination);
-        if (next.direction) params.set("direction", next.direction);
-        if (next.includeAmounts) params.set("includeAmounts", "true");
-
-        const res = await fetch(`/api/transactions?${params.toString()}`, {
-          credentials: "include",
-        });
-        const payload = (await res.json()) as ApiResponse;
-        if (!res.ok || payload.status !== "ok") {
-          throw new Error(payload.message || "No se pudieron obtener los movimientos");
-        }
-        setRows(payload.data);
-        setHasAmounts(Boolean(payload.hasAmounts));
-        setTotal(payload.total ?? payload.data.length);
-        setPage(payload.page ?? nextPage);
-        setPageSize(payload.pageSize ?? nextPageSize);
-        logger.info("[movements] fetch:success", {
-          rows: payload.data.length,
-          hasAmounts: Boolean(payload.hasAmounts),
-          total: payload.total,
-          page: payload.page,
-          pageSize: payload.pageSize,
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Error inesperado al cargar";
-        setError(message);
-        setRows([]);
-        setHasAmounts(false);
-        logger.error("[movements] fetch:error", message);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [canView, page, pageSize]
-  );
-
   const handleFilterChange = (update: Partial<Filters>) => {
-    setFilters((prev) => ({ ...prev, ...update }));
+    setDraftFilters((prev) => ({ ...prev, ...update }));
   };
 
   return (
@@ -189,12 +123,12 @@ export default function TransactionsMovements() {
       ) : (
         <>
           <TransactionsFilters
-            filters={filters}
+            filters={draftFilters}
             loading={loading}
             onChange={handleFilterChange}
             onSubmit={() => {
               setPage(1);
-              refresh(filters, 1, pageSize);
+              setAppliedFilters({ ...draftFilters });
             }}
           />
 
@@ -235,19 +169,19 @@ export default function TransactionsMovements() {
                 <select
                   value={quickRange}
                   onChange={(event) => {
-                    const value = event.target.value;
-                    if (value === "custom") return;
-                    const match = quickMonths.find((month) => month.value === value);
-                    if (!match) return;
-                    const nextFilters = { ...filters, from: match.from, to: match.to };
-                    setFilters(nextFilters);
-                    setPage(1);
-                    refresh(nextFilters, 1, pageSize);
-                  }}
-                  className="rounded border px-2 py-1"
-                >
-                  <option value="custom">Personalizado</option>
-                  {quickMonths.map((month) => (
+                const value = event.target.value;
+                if (value === "custom") return;
+                const match = quickMonths.find((month) => month.value === value);
+                if (!match) return;
+                const nextFilters = { ...draftFilters, from: match.from, to: match.to };
+                setDraftFilters(nextFilters);
+                setPage(1);
+                setAppliedFilters(nextFilters);
+              }}
+              className="rounded border px-2 py-1"
+            >
+              <option value="custom">Personalizado</option>
+              {quickMonths.map((month) => (
                     <option key={month.value} value={month.value}>
                       {month.label}
                     </option>
@@ -256,7 +190,7 @@ export default function TransactionsMovements() {
               </label>
               <button
                 type="button"
-                onClick={() => refresh(filters, page, pageSize)}
+                onClick={() => transactionsQuery.refetch()}
                 disabled={loading}
                 className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow disabled:cursor-not-allowed"
                 style={{ backgroundColor: "var(--brand-primary)", opacity: loading ? 0.6 : 1 }}
@@ -266,12 +200,13 @@ export default function TransactionsMovements() {
               <label className="flex items-center gap-2 text-xs text-slate-600">
                 <input
                   type="checkbox"
-                  checked={filters.includeAmounts}
+                  checked={draftFilters.includeAmounts}
                   onChange={(event) => {
-                    const nextFilters = { ...filters, includeAmounts: event.target.checked };
-                    setFilters(nextFilters);
+                    const nextFilters = { ...draftFilters, includeAmounts: event.target.checked };
+                    setDraftFilters(nextFilters);
                     logger.info("[movements] toggle includeAmounts", nextFilters.includeAmounts);
-                    refresh(nextFilters, page, pageSize);
+                    setPage(1);
+                    setAppliedFilters(nextFilters);
                   }}
                 />
                 Mostrar montos
@@ -288,12 +223,10 @@ export default function TransactionsMovements() {
             total={total}
             onPageChange={(nextPage: number) => {
               setPage(nextPage);
-              refresh(filters, nextPage, pageSize);
             }}
             onPageSizeChange={(nextPageSize: number) => {
               setPageSize(nextPageSize);
               setPage(1);
-              refresh(filters, 1, nextPageSize);
             }}
           />
         </>

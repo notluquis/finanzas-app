@@ -28,6 +28,14 @@ export default function PayoutUploadForm() {
     validator: validateWithdrawFile,
     multiple: true,
     confirmOnValidationWarning: true,
+    invalidateKeys: [
+      ["dashboard", "stats"],
+      ["dashboard", "recentMovements"],
+      ["participants", "leaderboard"],
+      ["stats", "overview"],
+      ["balances", "report"],
+      ["transactions", "movements"],
+    ],
   });
 
   return (

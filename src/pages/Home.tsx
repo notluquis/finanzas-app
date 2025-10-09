@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import dayjs from "dayjs";
-import { fetchParticipantLeaderboard } from "../features/participants/api";
-import type { ParticipantSummaryRow } from "../features/participants/types";
-import type { DbMovement } from "../features/transactions/types";
-import { fetchStats, fetchRecentMovements, type StatsResponse } from "../features/dashboard/api";
+import { useDashboardStats, useRecentMovements } from "../features/dashboard/hooks";
+import { useParticipantLeaderboardQuery } from "../features/participants/hooks";
 import MetricCard from "../features/dashboard/components/MetricCard";
 import DashboardChart from "../features/dashboard/components/DashboardChart";
 import QuickActions from "../features/dashboard/components/QuickActions";
@@ -15,59 +13,32 @@ import Alert from "../components/Alert";
 const RANGE_DAYS = 30;
 
 export default function Home() {
-  const [stats, setStats] = useState<StatsResponse | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [statsError, setStatsError] = useState<string | null>(null);
-  const [topParticipants, setTopParticipants] = useState<ParticipantSummaryRow[]>([]);
-  const [participantsError, setParticipantsError] = useState<string | null>(null);
-  const [recentMovements, setRecentMovements] = useState<DbMovement[]>([]);
-
   const from = useMemo(() => dayjs().subtract(RANGE_DAYS, "day").format("YYYY-MM-DD"), []);
   const to = useMemo(() => dayjs().format("YYYY-MM-DD"), []);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+  const statsParams = useMemo(() => ({ from, to }), [from, to]);
+  const statsQuery = useDashboardStats(statsParams);
 
-  async function loadDashboard() {
-    await Promise.all([loadStats(), loadParticipants(), loadMovements()]);
-  }
+  const leaderboardParams = useMemo(
+    () => ({ from, to, limit: 5, mode: "outgoing" as const }),
+    [from, to]
+  );
+  const participantsQuery = useParticipantLeaderboardQuery(leaderboardParams, {
+    enabled: Boolean(from && to),
+  });
 
-  async function loadStats() {
-    setStatsLoading(true);
-    setStatsError(null);
-    try {
-      const payload = await fetchStats(from, to);
-      setStats(payload);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Error al cargar el resumen";
-      setStatsError(message);
-      setStats(null);
-    } finally {
-      setStatsLoading(false);
-    }
-  }
+  const recentMovementsQuery = useRecentMovements();
 
-  async function loadParticipants() {
-    setParticipantsError(null);
-    try {
-      const response = await fetchParticipantLeaderboard({ from, to, limit: 5, mode: "outgoing" });
-      setTopParticipants(response.participants);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "No se pudo obtener el ranking de retiros";
-      setParticipantsError(message);
-      setTopParticipants([]);
-    }
-  }
+  const stats = statsQuery.data ?? null;
+  const statsLoading = statsQuery.isPending || statsQuery.isFetching;
+  const statsError = statsQuery.error instanceof Error ? statsQuery.error.message : null;
 
-  async function loadMovements() {
-    try {
-      const data = await fetchRecentMovements();
-      setRecentMovements(data);
-    } catch (err) {
-      setRecentMovements([]);
-    }
-  }
+  const topParticipants = participantsQuery.data ?? [];
+  const participantsLoading = participantsQuery.isPending || participantsQuery.isFetching;
+  const participantsError =
+    participantsQuery.error instanceof Error ? participantsQuery.error.message : null;
+
+  const recentMovements = recentMovementsQuery.data ?? [];
 
   const totals = useMemo(() => {
     if (!stats) return { in: 0, out: 0, net: 0 };
@@ -103,7 +74,11 @@ export default function Home() {
           <QuickActions />
         </div>
         <aside className="space-y-6 min-w-0">
-          <TopParticipantsWidget data={topParticipants} loading={statsLoading} error={participantsError} />
+          <TopParticipantsWidget
+            data={topParticipants}
+            loading={participantsLoading}
+            error={participantsError}
+          />
           <RecentMovementsWidget rows={recentMovements} />
         </aside>
       </section>

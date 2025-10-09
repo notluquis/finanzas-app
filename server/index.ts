@@ -4,7 +4,9 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { ensureSchema, getPool } from "./db.js";
+import { getPool } from "./db.js";
+import { bindRequestLogger, getRequestLogger, logger } from "./lib/logger.js";
+import { runMigrations } from "./migrationRunner.js";
 import { PORT } from "./config.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
@@ -30,8 +32,12 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
-app.use((req, _res, next) => {
-  console.log(`[req] ${req.method} ${req.originalUrl}`);
+app.use((req, res, next) => {
+  const requestLogger = bindRequestLogger(req, res);
+  requestLogger.info({ event: "request:start" });
+  res.on("finish", () => {
+    requestLogger.info({ event: "request:complete", statusCode: res.statusCode });
+  });
   next();
 });
 
@@ -51,7 +57,8 @@ app.use("/api/supplies", suppliesRouter);
 registerAssetRoutes(app);
 
 app.get("/api/health", async (_req, res) => {
-  console.info("[steps][health] Step 0: /api/health recibido");
+  const requestLogger = getRequestLogger(_req);
+  requestLogger.info({ event: "health:start" });
   const checks: {
     db: { status: "ok" | "error"; latency: number | null; message?: string };
   } = {
@@ -63,15 +70,13 @@ app.get("/api/health", async (_req, res) => {
   const start = Date.now();
   try {
     const pool = getPool();
-    console.info("[steps][health] Step 1: ejecutando SELECT 1");
     await pool.execute("SELECT 1");
     checks.db.latency = Date.now() - start;
-    console.info("[steps][health] Step 2: SELECT 1 OK", checks.db.latency);
   } catch (error) {
     checks.db.status = "error";
     checks.db.message = error instanceof Error ? error.message : "Error desconocido";
     status = "degraded";
-    console.error("[steps][health] Step error: fallo en consulta", error);
+    requestLogger.error({ event: "health:error", error }, "Fallo al consultar la base de datos");
   }
 
   res.json({
@@ -79,7 +84,7 @@ app.get("/api/health", async (_req, res) => {
     timestamp: new Date().toISOString(),
     checks,
   });
-  console.info("[steps][health] Step final: respuesta enviada", status);
+  requestLogger.info({ event: "health:complete", status });
 });
 
 // --- Production Frontend Serving ---
@@ -98,8 +103,8 @@ app.get(/^(?!\/api).*$/, (_req, res) => {
 });
 // --- End Production Frontend Serving ---
 
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err);
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  getRequestLogger(req).error({ err }, "Unhandled server error");
   const status = typeof err.statusCode === "number" ? err.statusCode : 500;
   res.status(status).json({
     status: "error",
@@ -107,20 +112,19 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-ensureSchema()
+runMigrations()
   .then(() => {
     app.listen(PORT, () => {
-      console.log('\n🚀 ===== SERVIDOR FINANZAS APP =====');
-      console.log(`📡 API: http://localhost:${PORT}/api/health`);
-      console.log(`🌐 Frontend: http://localhost:${PORT}/`);
-      console.log(`⚡ Estado: Servidor iniciado y listo`);
-      console.log('=====================================\n');
+      logger.info("🚀 ===== SERVIDOR FINANZAS APP =====");
+      logger.info(`📡 API: http://localhost:${PORT}/api/health`);
+      logger.info(`🌐 Frontend: http://localhost:${PORT}/`);
+      logger.info("⚡ Estado: Servidor iniciado y listo");
+      logger.info("=====================================");
     });
   })
   .catch((error) => {
-    console.error('\n❌ ===== ERROR DE INICIALIZACIÓN =====');
-    console.error("💾 No se pudo inicializar la base de datos:");
-    console.error(error);
-    console.error('=====================================\n');
+    logger.error({ error }, "❌ ===== ERROR DE INICIALIZACIÓN =====");
+    logger.error("💾 No se pudo inicializar la base de datos");
+    logger.error("=====================================");
     process.exit(1);
   });

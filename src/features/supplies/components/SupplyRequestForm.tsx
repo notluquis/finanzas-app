@@ -1,11 +1,14 @@
 import React, { useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useForm } from "../../../hooks";
 import Button from "../../../components/Button";
 import Input from "../../../components/Input";
 import Alert from "../../../components/Alert";
-import { apiClient } from "../../../lib";
 import type { CommonSupply, StructuredSupplies } from "../types";
+import { createSupplyRequest, type SupplyRequestPayload } from "../api";
+import { queryKeys } from "../../../lib/queryKeys";
+import { useToast } from "../../../context/ToastContext";
 
 const supplyRequestSchema = z.object({
   selectedSupply: z.string().min(1, "Seleccione un insumo"),
@@ -25,6 +28,15 @@ interface SupplyRequestFormProps {
 export default function SupplyRequestForm({ commonSupplies, onSuccess }: SupplyRequestFormProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToast();
+
+  const createRequestMutation = useMutation<void, Error, SupplyRequestPayload>({
+    mutationFn: createSupplyRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.supplies.requests() });
+    },
+  });
   
   const form = useForm({
     initialValues: {
@@ -39,7 +51,7 @@ export default function SupplyRequestForm({ commonSupplies, onSuccess }: SupplyR
       setErrorMessage(null);
       setSuccessMessage(null);
       try {
-        await apiClient.post("/api/supplies/requests", {
+        await createRequestMutation.mutateAsync({
           supplyName: values.selectedSupply,
           quantity: values.quantity,
           brand: values.selectedBrand === 'N/A' || !values.selectedBrand ? undefined : values.selectedBrand,
@@ -47,10 +59,13 @@ export default function SupplyRequestForm({ commonSupplies, onSuccess }: SupplyR
           notes: values.notes || undefined,
         });
         setSuccessMessage("¡Solicitud de insumo enviada con éxito!");
+        toastSuccess("Solicitud de insumo enviada");
         form.reset();
         onSuccess();
       } catch (err: any) {
-        setErrorMessage(err.message || "Error al enviar la solicitud");
+        const message = err.message || "Error al enviar la solicitud";
+        setErrorMessage(message);
+        toastError(message);
       }
     },
     validateOnChange: false,

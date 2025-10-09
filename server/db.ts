@@ -14,6 +14,18 @@ import { formatLocalDateForMySQL } from "./lib/time.js";
 import { InventoryCategory, InventoryItem, InventoryMovement } from "./types.js";
 import { roundCurrency } from "../shared/currency.js";
 import { SQLBuilder, selectMany } from "./lib/database.js";
+import type {
+  CounterpartRecord,
+  CounterpartAccountRecord,
+  CounterpartAccountMetadata,
+  CounterpartPersonType,
+} from "./repositories/counterparts.js";
+import {
+  listCounterparts,
+  getCounterpartById,
+  createCounterpart,
+  updateCounterpart,
+  upsertCounterpartAccount,
 
 dotenv.config();
 

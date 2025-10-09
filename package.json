@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:client": "vite build",
-    "build:server": "tsc -p tsconfig.server.json && npm run copy:sql",
-    "copy:sql": "cp -r server/sql dist/server/",
+    "build:server": "tsc -p tsconfig.server.json",
     "preview": "vite preview",
     "server": "npx @dotenvx/dotenvx run -- tsx watch --tsconfig tsconfig.server.json server/index.ts",
     "predev:full": "node scripts/reset-dev.mjs",
@@ -27,9 +26,13 @@
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,md,json}\"",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,css,md,json}\"",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest",
+    "migrate": "tsx server/migrationRunner.ts",
+    "seed": "tsx server/seed.ts"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.2",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -45,6 +48,7 @@
     "multer": "^2.0.2",
     "mysql2": "^3.15.1",
     "papaparse": "^5.5.3",
+    "pino": "^10.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.3",
@@ -53,6 +57,8 @@
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.51.0",
     "@tailwindcss/vite": "^4.1.14",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
     "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
@@ -70,10 +76,12 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^6.1.1",
+    "jsdom": "^27.0.0",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vite": "^7.1.9"
+    "vite": "^7.1.9",
+    "vitest": "^3.2.4"
   }
 }
