@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export function useMonths() {
+export function useMonths(employeeId?: number | null) {
   const [months, setMonths] = useState<string[]>([]);
   const [monthsWithData, setMonthsWithData] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
@@ -8,7 +8,14 @@ export function useMonths() {
 
   useEffect(() => {
     setLoading(true);
-    fetch("/api/timesheets/months", { credentials: "include" })
+    const params = new URLSearchParams();
+    if (employeeId) {
+      params.set("employeeId", String(employeeId));
+    }
+
+    const url = `/api/timesheets/months${params.toString() ? `?${params.toString()}` : ""}`;
+
+    fetch(url, { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         if (data.status === "ok" && Array.isArray(data.months) && data.months.length > 0) {
@@ -37,7 +44,7 @@ export function useMonths() {
         setError("No se pudieron cargar los meses");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [employeeId]);
 
   return { months, monthsWithData, loading, error };
 }

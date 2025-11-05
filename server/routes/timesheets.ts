@@ -28,8 +28,10 @@ export function registerTimesheetRoutes(app: express.Express) {
   // Endpoint para obtener meses registrados
   app.get(
     "/api/timesheets/months",
-    asyncHandler(async (_req, res) => {
+    asyncHandler(async (req, res) => {
       const pool = getPool();
+      const employeeId = req.query.employeeId ? Number(req.query.employeeId) : undefined;
+
       // Generar lista de meses disponibles: 6 meses atrás hasta 3 meses adelante
       const now = new Date();
       const pad = (n: number) => String(n).padStart(2, "0");
@@ -38,10 +40,18 @@ export function registerTimesheetRoutes(app: express.Express) {
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
       });
 
-      // Consultar qué meses tienen datos reales
-      const [rows] = await pool.query<RowDataPacket[]>(
-        `SELECT DISTINCT DATE_FORMAT(work_date, '%Y-%m') as month FROM employee_timesheets ORDER BY month DESC`
-      );
+      // Consultar qué meses tienen datos reales (opcionalmente filtrados por empleado)
+      let query = `SELECT DISTINCT DATE_FORMAT(work_date, '%Y-%m') as month FROM employee_timesheets`;
+      const params: number[] = [];
+
+      if (employeeId) {
+        query += ` WHERE employee_id = ?`;
+        params.push(employeeId);
+      }
+
+      query += ` ORDER BY month DESC`;
+
+      const [rows] = await pool.query<RowDataPacket[]>(query, params);
       const monthsWithData = new Set(rows.map((r: RowDataPacket) => r.month as string).filter(Boolean));
 
       res.json({

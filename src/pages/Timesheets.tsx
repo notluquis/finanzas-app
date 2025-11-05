@@ -34,7 +34,6 @@ export default function TimesheetsPage() {
   useAuth(); // invoke to ensure auth refresh (no direct usage of hasRole here)
   // canEdit removed (unused in current UI flow)
 
-  const { months, monthsWithData, loading: loadingMonths } = useMonths();
   const [month, setMonth] = useState<string>("");
   const [visibleCount, setVisibleCount] = useState(10);
   const [summary, setSummary] = useState<{
@@ -51,6 +50,8 @@ export default function TimesheetsPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const { months, monthsWithData, loading: loadingMonths } = useMonths(selectedEmployeeId);
+
   const loadEmployees = useCallback(async () => {
     try {
       const data = await fetchEmployees(false);
@@ -66,14 +67,14 @@ export default function TimesheetsPage() {
     loadEmployees();
   }, [loadEmployees]);
 
-  // Set initial month when months list is loaded (previous month)
+  // Set initial month when employee is selected and months are loaded
   useEffect(() => {
-    if (months.length && !month) {
+    if (months.length && selectedEmployeeId && !month) {
       const previousMonth = dayjs().subtract(1, "month").format("YYYY-MM");
       const hasPreviousMonth = months.includes(previousMonth);
       setMonth(hasPreviousMonth ? previousMonth : (months[0] ?? ""));
     }
-  }, [months, month]);
+  }, [months, month, selectedEmployeeId]);
 
   // Consolidated effect: load summary and detail when month or selectedEmployeeId changes
   useEffect(() => {
@@ -335,7 +336,10 @@ export default function TimesheetsPage() {
               value={selectedEmployeeId ?? ""}
               onChange={(e) => {
                 const value = e.target.value;
-                setSelectedEmployeeId(value ? Number(value) : null);
+                const newEmployeeId = value ? Number(value) : null;
+                setSelectedEmployeeId(newEmployeeId);
+                // Reset month when employee changes to show employee-specific months
+                setMonth("");
                 setInfo(null);
               }}
               className="rounded border px-3 py-2 text-sm bg-base-100"
@@ -359,19 +363,23 @@ export default function TimesheetsPage() {
                 setInfo(null);
               }}
               className="rounded border px-3 py-2 text-sm bg-base-100"
-              disabled={loadingMonths}
+              disabled={loadingMonths || !selectedEmployeeId}
             >
-              {months.slice(0, visibleCount).map((m) => {
-                const hasData = monthsWithData.has(m);
-                const label = dayjs(m + "-01").format("MMMM YYYY");
-                return (
-                  <option key={m} value={m}>
-                    {hasData ? `${label} ✓` : label}
-                  </option>
-                );
-              })}
+              {!selectedEmployeeId ? (
+                <option value="">Seleccione un trabajador primero</option>
+              ) : (
+                months.slice(0, visibleCount).map((m) => {
+                  const hasData = monthsWithData.has(m);
+                  const label = dayjs(m + "-01").format("MMMM YYYY");
+                  return (
+                    <option key={m} value={m}>
+                      {hasData ? `${label} ✓` : label}
+                    </option>
+                  );
+                })
+              )}
             </select>
-            {months.length > visibleCount && (
+            {selectedEmployeeId && months.length > visibleCount && (
               <Button
                 type="button"
                 variant="secondary"
