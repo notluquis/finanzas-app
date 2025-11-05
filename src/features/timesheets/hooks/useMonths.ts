@@ -9,7 +9,7 @@ export function useMonths(employeeId?: number | null) {
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (employeeId) {
+    if (employeeId != null) {
       params.set("employeeId", String(employeeId));
     }
 

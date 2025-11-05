@@ -30,7 +30,18 @@ export function registerTimesheetRoutes(app: express.Express) {
     "/api/timesheets/months",
     asyncHandler(async (req, res) => {
       const pool = getPool();
-      const employeeId = req.query.employeeId ? Number(req.query.employeeId) : undefined;
+      let employeeId: number | undefined;
+
+      if (req.query.employeeId) {
+        const parsed = Number(req.query.employeeId);
+        if (isNaN(parsed) || parsed <= 0) {
+          return res.status(400).json({
+            status: "error",
+            message: "employeeId debe ser un número válido y positivo",
+          });
+        }
+        employeeId = parsed;
+      }
 
       // Generar lista de meses disponibles: 6 meses atrás hasta 3 meses adelante
       const now = new Date();
@@ -44,7 +55,7 @@ export function registerTimesheetRoutes(app: express.Express) {
       let query = `SELECT DISTINCT DATE_FORMAT(work_date, '%Y-%m') as month FROM employee_timesheets`;
       const params: number[] = [];
 
-      if (employeeId) {
+      if (employeeId != null) {
         query += ` WHERE employee_id = ?`;
         params.push(employeeId);
       }
